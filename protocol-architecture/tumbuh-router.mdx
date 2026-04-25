@@ -1,127 +1,47 @@
 ---
 title: "TumbuhRouter"
-description: "The IDRX entry point. Splits deposits, drives swaps, mints receipts, and tracks per-user vault-share ownership."
+description: "The protocol's entry layer. Splits deposits, drives swaps, issues receipt tokens, and tracks per-user vault positions."
 sidebarTitle: "TumbuhRouter"
 icon: "route"
 ---
 
 # TumbuhRouter
 
-The TumbuhRouter is the only Tumbuh contract a regular user interacts with. It accepts IDRX, splits the deposit between a swap-to-USDC path and an idle reserve, deposits the USDC into the [Vault](/protocol-architecture/tumbuh-vault), and mints [tIDRX](/tokens#tidrx) as a receipt. On withdrawal, it does the inverse.
+The TumbuhRouter is the entry point a regular user interacts with. It accepts the supported stablecoin (currently IDRX), splits each deposit between a swap-to-vault-asset path and an idle reserve, places the swapped portion into [TumbuhVault](/protocol-architecture/tumbuh-vault) on your behalf, and issues your receipt token (currently tIDRX). On withdrawal, it does the inverse.
 
-The Router is the **extensibility point for additional input assets** in the future. Today it only handles IDRX, but the contract surface is shaped so a second router (or this router upgraded) could accept a different input asset without changing the Vault.
+The router is the **extensibility point for additional supported stablecoins**. Today it handles IDRX; the contract surface is shaped so a future router (or this router upgraded) can accept a different supported stablecoin without changes to the underlying vault.
 
-## Key state
+## What the router does
 
-| Storage | Type | Purpose |
-|---|---|---|
-| `vault` | `address` | The TumbuhVault this Router deposits into. |
-| `swapContract` | `address` | The SwapContract used for IDRX↔USDC swaps. |
-| `tidrx` | `address` | The TIDRX receipt token. Set once via `setTidrx`. |
-| `idrxToken` | `address` | The IDRX entry asset. |
-| `usdcToken` | `address` | The vault asset. |
-| `swapPercentage` | `uint256` | Fraction of every deposit swapped to USDC (in bps, bounded 7000–9000). |
-| `minDepositAmount` | `uint256` | Minimum IDRX per deposit. May be 0. |
-| `userVaultShares` | `mapping(address ⇒ uint256)` | Vault shares owned by each user. **The Router holds the shares on-chain; this mapping records who owns what.** |
-| `idrxIdleBalances` | `mapping(address ⇒ uint256)` | Per-user IDRX held idle by the Router (the unswapped portion of deposits). |
+- Pulls your stablecoin from your wallet on deposit.
+- Swaps the configured portion to the vault's underlying asset; holds the rest as your per-user idle balance.
+- Places the swapped portion into the vault on your behalf, recording the resulting vault position against your address.
+- Issues your receipt token 1:1 with the gross stablecoin amount you deposited.
+- Reverses the entire flow on withdrawal: burns your receipt, redeems your share of the vault, swaps the proceeds back to your stablecoin, and returns the result to your wallet alongside your idle balance.
 
-## External user functions
+## What the router does not do
 
-### `depositWithSwap`
-
-```solidity
-function depositWithSwap(
-    uint256 idrxAmount,
-    address receiver,
-    uint256 minSharesOut,
-    bytes calldata swapData
-) external whenNotPaused nonReentrant returns (uint256 shares);
-```
-
-Pulls `idrxAmount` IDRX from `msg.sender`, swaps `idrxToSwap = idrxAmount × swapPercentage / 10000` to USDC, deposits the USDC into the Vault, credits `userVaultShares[receiver]`, stores the residual IDRX in `idrxIdleBalances[receiver]`, and mints tIDRX 1:1 to `receiver`. Reverts if `shares < minSharesOut`. Full step-by-step on the [deposit flow](/how-it-works/deposit-flow) page.
-
-Emits `DepositWithSwap(sender, receiver, idrxAmount, idrxToSwap, idrxIdle, usdcAmount, shares)`.
-
-### `redeemWithSwap`
-
-```solidity
-function redeemWithSwap(
-    uint256 tidrxAmount,
-    address receiver,
-    uint256 minIdrxOut,
-    bytes calldata swapData
-) external whenNotPaused nonReentrant returns (uint256 idrxAmount);
-```
-
-Burns `tidrxAmount` from `msg.sender`, redeems a proportional slice of vault shares, swaps the resulting USDC back to IDRX, attaches the proportional idle balance, and transfers IDRX to `receiver`. Reverts if total IDRX out is below `minIdrxOut`. Full sequence on the [withdraw flow](/how-it-works/withdraw-flow) page.
-
-Emits `RedeemWithSwap(sender, receiver, tidrxAmount, sharesToRedeem, usdcAmount, idrxFromSwap, idleToReturn)`.
-
-## View functions
-
-| Function | Returns |
-|---|---|
-| `getIdleBalance(address user)` | The user's idle IDRX held by the Router. |
-| `getUserVaultShares(address user)` | The user's vault-share balance. **Use this, not `vault.balanceOf(user)`.** |
-| `swapPercentage()` | Current swap percentage in bps. |
-| `minDepositAmount()` | Current minimum deposit, or 0 if disabled. |
-| `vault()`, `swapContract()`, `tidrx()`, `idrxToken()`, `usdcToken()` | The configured contract addresses. |
-
-## Admin functions
-
-### `ADMIN_MANAGER` role
-
-| Function | Effect |
-|---|---|
-| `setSwapPercentage(uint256 newPercentage)` | Updates the swap percentage. **Bounded 7000–9000 bps.** Emits `SwapPercentageUpdated`. |
-| `setMinDepositAmount(uint256 newMinAmount)` | Updates the minimum deposit. May be 0 (disables the check). Emits `MinDepositAmountUpdated`. |
-
-The `ADMIN_MANAGER` role is distinct from the Vault's and StrategyManager's `OPERATOR_ROLE`. This separation lets a router-config admin tune deposit parameters without inheriting vault-level operational authority.
-
-### `DEFAULT_ADMIN_ROLE`
-
-| Function | Effect |
-|---|---|
-| `setVault(address newVault)` | Re-points the Router at a different Vault. Emits `VaultUpdated`. |
-| `setSwapContract(address newSwapContract)` | Re-points the SwapContract reference. Emits `SwapContractUpdated`. |
-| `setTidrx(address newTidrx)` | **One-time only.** Reverts after the first successful call. Emits `TidrxUpdated`. |
-
-### `GUARDIAN_ROLE`
-
-| Function | Effect |
-|---|---|
-| `pause()` | Blocks `depositWithSwap` and `redeemWithSwap`. |
-| `unpause()` | Restores normal operation. |
-
-## Events
-
-| Event | Indexed args | Notes |
-|---|---|---|
-| `DepositWithSwap` | `sender`, `receiver` | The full deposit cycle. Useful for indexing user positions. |
-| `RedeemWithSwap` | `sender`, `receiver` | The full redemption cycle. |
-| `SwapPercentageUpdated` | — | Tracks `ADMIN_MANAGER` parameter changes. |
-| `MinDepositAmountUpdated` | — | Tracks minimum-deposit changes. |
-| `VaultUpdated` / `SwapContractUpdated` / `TidrxUpdated` | — | Tracks admin re-wiring. `TidrxUpdated` fires at most once. |
+- It does not custody vault assets directly — that is the vault's job.
+- It does not allocate capital across yield protocols — that is the strategy allocator's job.
+- It does not collect fees — that is the vault's job.
 
 ## Important caveats
 
 <Note>
-**The Router holds vault shares on behalf of users.** `vault.balanceOf(user)` is always zero. To read a user's position, use `router.getUserVaultShares(user)`. This indirection is intentional — the Router abstracts the USDC denomination so the caller can think in IDRX.
+**The router holds vault positions on behalf of users.** The web app at [app.tumbuh.fi](https://app.tumbuh.fi) reads the per-user record automatically; you do not need to query the vault directly.
 </Note>
 
 <Note>
-**`setTidrx` is one-time only.** The Router refuses to overwrite the receipt-token address once it has been set. This is a deployment-time invariant: the receipt token is fixed at the contract level and cannot be migrated by an admin.
+**The receipt-token wiring is fixed at deployment** and cannot be migrated by an admin.
 </Note>
 
 <Note>
-**Swap-percentage admin uses `ADMIN_MANAGER`, not `OPERATOR_ROLE`.** The role separation is intentional; see [Access control](/security/access-control) for the reasoning.
+**The router can be paused** by the protocol's guardian role in an emergency. While paused, deposits and withdrawals are blocked. See [Pausability and emergency](/security/pausability-emergency).
 </Note>
-
-The Router is `whenNotPaused` and `nonReentrant` on every state-changing user function. Pause is GUARDIAN-controlled and blocks both deposits and redemptions.
 
 ## Related pages
 
-- [Deposit flow](/how-it-works/deposit-flow) — full `depositWithSwap` walkthrough.
-- [Withdraw flow](/how-it-works/withdraw-flow) — full `redeemWithSwap` walkthrough.
-- [Access control](/security/access-control) — role matrix.
+- [Deposit flow](/how-it-works/deposit-flow) — what happens when you deposit on app.tumbuh.fi.
+- [Withdraw flow](/how-it-works/withdraw-flow) — what happens when you withdraw on app.tumbuh.fi.
+- [Access control](/security/access-control) — full role matrix.
 - [Risks and disclosures](/security/risks-and-disclosures) — Router-failure recovery runbook.

@@ -1,115 +1,37 @@
 ---
 title: "Fees and yield"
-description: "How performance fees work, how the share price is computed, and why slippage is isolated to the withdrawer."
+description: "How Tumbuh handles yield, slippage, and the fee model."
 sidebarTitle: "Fees and yield"
 icon: "calculator"
 ---
 
 # Fees and yield
 
-This page covers two related topics: how Tumbuh charges fees on profits, and how vault accounting handles yield, slippage, and external-vault failures.
+This page covers how the vault accounts for yield, why withdrawal slippage is isolated to the withdrawer, and where the fee model stands today.
 
-## Fee model — performance fee
-
-Tumbuh charges only one fee: a **performance fee on profit above the all-time high**. There are no entry fees, no exit fees, and no management fees.
-
-### High-watermark mechanics
-
-The Vault tracks an all-time-high `totalAssets()` value called the **high-watermark (HWM)**. A performance fee can only be charged on the increase above HWM. Drawdowns reduce `totalAssets()` below HWM but never trigger a fee — the HWM itself does not move down.
-
-```
-profit  = max(0, totalAssets() - highWaterMark)
-feeAssets = profit × performanceFeeBps / 10000
-```
-
-If `profit ≤ 0`, the fee is zero and the call is a no-op. If `profit > 0`, the Operator can collect.
-
-### Fee rate
-
-`performanceFeeBps` is set by the `OPERATOR_ROLE` via `setPerformanceFee(uint16)`. It is bounded:
-
-- **Minimum:** 0 bps (fee disabled).
-- **Maximum:** 3000 bps (30%).
-
-The Vault's `setPerformanceFee` reverts if a higher value is supplied. There is no admin override — even `DEFAULT_ADMIN_ROLE` cannot raise the fee above the cap.
-
-### Collection
-
-Fees are not auto-deducted. The `OPERATOR_ROLE` calls `collectFee()` periodically — typically after a meaningful yield event or on a schedule. The function is `nonReentrant` and does the following:
-
-1. Compute `profit = totalAssets() - highWaterMark`.
-2. If `profit ≤ 0`, return without changes.
-3. Compute `feeAssets = profit × performanceFeeBps / 10000`.
-4. Mint shares to the treasury equivalent in value to `feeAssets`.
-5. Set `highWaterMark = totalAssets()` (the new high after the mint).
-6. Emit `PerformanceFeeCollected(profit, feeAssets, feeShares, treasury)`.
+## Performance fee
 
 <Note>
-**Performance fees are paid in vault shares, not USDC.** The treasury holds shares like any other holder and can redeem them for USDC at its discretion. From a holder's perspective, the share-count grows by the fee mint, which is mathematically equivalent to deducting `feeAssets` from `totalAssets`.
+**Performance fee — coming soon.** The fee model is being redesigned. **The protocol does not currently charge a performance fee.** The previous high-watermark design has been retired pending the new model; this page will be updated when the new design is ready.
 </Note>
 
-### View helpers
+## How the vault accounts for yield
 
-| Function | Returns |
-|---|---|
-| `getPerformanceFee()` | The current fee in bps. |
-| `getHighWaterMark()` | The current HWM. |
-| `pendingPerformanceFee()` | `(feeAssets, feeShares)` that would be minted if `collectFee` ran now. Returns zero if no profit above HWM. |
+The vault's value is the sum of any idle stablecoin held in the vault plus the current value of every active yield-protocol position. If a single integrated protocol is temporarily unable to report its value, the vault falls back to the last known value for that position; this keeps the vault's reported value stable even if one external integration goes through a hiccup.
 
-### Worked example
+Each share's value (the vault's value divided by the share count) rises as yield accrues — see [Yield generation](/how-it-works/yield-generation) for the long-form picture.
 
-Assume `performanceFeeBps = 1000` (10%), `totalAssets = 100,000` USDC at HWM, `totalSupply = 100,000` shares.
+## Slippage isolation
 
-| Time | totalAssets | HWM | Action | Result |
-|---|---|---|---|---|
-| `t0` | 100,000 | 100,000 | — | Share price 1.00 USDC |
-| `t1` | 102,000 | 100,000 | Yield accrues; no fee yet | Pending: `feeAssets = 200`, `feeShares ≈ 197` |
-| `t2` | 102,000 | 100,000 | Operator calls `collectFee` | Mint ≈197 shares to treasury, HWM → 102,000 |
-| `t3` | 99,500 | 102,000 | Drawdown | No fee. HWM unchanged |
-| `t4` | 103,000 | 102,000 | New high | Pending: fee on the 1,000 increase only |
+When the vault redeems a yield-protocol position to fund a withdrawal, the protocol may pay out slightly less than its quoted value (because of withdrawal fees, looped-position unwinding, or rounding). Tumbuh isolates this cost to the user who triggered the withdrawal. Their proceeds are reduced; other holders' position value is unaffected.
 
-The numbers are illustrative. Actual yield depends on the integrated strategies.
+This is fair: the user who triggered the exit pays the cost of that exit, and other users are not asked to subsidise it. It is also a reason to set a realistic slippage bound when withdrawing — a bound set too tight will cause the transaction to revert; a bound set too loose accepts more cost from market movement.
 
-## Yield accounting
-
-### `totalAssets()` composition
-
-`totalAssets()` represents the Vault's total USDC value:
-
-```
-totalAssets = idle USDC in the Vault + Σ getValueOrFallback(strategy_i)
-```
-
-`getValueOrFallback(strategy_i)` calls the adapter's `convertToAssets(vault, totalShares)`. If that call reverts — because an external vault is paused, upgraded, or reverts in some other way — the function falls back to the strategy's `lastKnownValue` (the cached value from the last successful operation).
-
-This means **a broken external vault cannot brick TVL reads**. Other strategies are unaffected, and the Vault keeps producing share-price quotes for the healthy ones.
-
-### Share price
-
-The Vault is ERC-4626. Share price is `totalAssets() / totalSupply()`. As yield accrues, `totalAssets()` rises while `totalSupply()` is unchanged outside of fee mints — so the share price rises. See [Yield generation](/how-it-works/yield-generation) for the long form and worked examples.
-
-### Slippage isolation
-
-When the Vault redeems a strategy position, the external vault may pay out slightly less than `convertToAssets` predicts — because of withdrawal fees, exit slippage on a looped position, or rounding. **Tumbuh isolates this loss to the withdrawer rather than spreading it across all holders.**
-
-**How it works.** The Vault's `redeem` returns the **actual** USDC received from the strategies, not the optimistic estimate. The `redeem` caller (the Router) takes whatever USDC actually came out. Because the Vault burns the caller's shares — not anyone else's — the loss reduces only the withdrawer's proceeds. Other vault holders' share price is not affected.
-
-**Worked example.** A user with 50% of vault shares calls `redeemWithSwap` for their full position. `convertToAssets` predicts 1,000 USDC. Strategy exit slippage is 0.3%, so the Vault actually receives 997 USDC. The Router gets 997 USDC, swaps it to IDRX, and returns the result. The remaining 50% of vault holders are unaffected — their share price is unchanged.
-
-This is fair: the user who triggered the strategy exit pays the cost of that exit. It is also a reason to set `minIdrxOut` based on a realistic exit-slippage assumption rather than the optimistic `convertToAssets` quote.
-
-### Inflation-attack protection
-
-ERC-4626 is vulnerable to a "first depositor" attack where an early actor donates dust to the Vault to skew the share price. Tumbuh blocks this in two ways:
-
-- **Decimals offset.** `_decimalsOffset()` returns 3, so shares have 9 decimals against USDC's 6. This raises the cost of any donation-based skew.
-- **Dead shares.** At deployment, the Vault mints a small share quantity (1,000 USDC wei worth) to `0x...dEaD`. With non-zero `totalSupply` from the start, attacker donations cannot drive the share price arbitrarily high.
-
-Combined, these make the standard inflation attack uneconomic.
+For the user-facing presentation of this behaviour and a worked example, see the [Withdraw flow](/how-it-works/withdraw-flow#why-your-output-may-differ-slightly-from-the-estimate).
 
 ## Related pages
 
-- [Yield generation](/how-it-works/yield-generation) — long form on share price, compounding, and reward claiming.
-- [TumbuhVault](/protocol-architecture/tumbuh-vault) — the contract reference.
+- [Yield generation](/how-it-works/yield-generation) — long form on share value, compounding, and reward claiming.
 - [Withdraw flow](/how-it-works/withdraw-flow) — slippage isolation in the user-facing context.
+- [Invariants](/security/invariants) — protocol invariants including inflation-attack protection.
 - [Risks and disclosures](/security/risks-and-disclosures) — slippage, external-protocol, and admin risks.
