@@ -1,38 +1,38 @@
 ---
 title: "Introduction"
-description: "Tumbuh is a yield aggregation vault on Base that turns IDRX into diversified, on-chain savings."
+description: "Tumbuh is a yield aggregation vault on Base that turns your stablecoin (currently IDRX) into diversified, on-chain savings."
 sidebarTitle: "Introduction"
 icon: "leaf"
 ---
 
 # Welcome to Tumbuh
 
-Tumbuh is a yield aggregation vault on **Base** that lets you deposit IDRX and earn yield across multiple DeFi protocols without managing positions yourself. The protocol routes your deposit through a swap, allocates the proceeds across several ERC-4626 vaults, and pays the yield back as a steadily rising share price.
+Tumbuh is a yield aggregation vault on **Base** that lets you deposit a supported stablecoin (currently IDRX) and earn yield across multiple DeFi protocols without managing positions yourself. The protocol routes your deposit through an automatic swap, allocates the proceeds across a diversified set of yield protocols, and pays the yield back as a steadily rising share value.
 
-The name *tumbuh* means "to grow" in Bahasa Indonesia. Today the protocol accepts IDRX as the entry asset; the [TumbuhRouter](/protocol-architecture/tumbuh-router) is the extensibility layer for additional input assets in the future.
+The name *tumbuh* means "to grow" in Bahasa Indonesia. Today the protocol accepts IDRX as its first entry asset; additional supported stablecoins can be added over time without changes to the underlying vault.
 
 ## What Tumbuh does
 
-When you deposit IDRX, the Router swaps a configurable portion to **USDC** and deposits it into the [TumbuhVault](/protocol-architecture/tumbuh-vault). The vault delegates allocation to a [StrategyManager](/protocol-architecture/strategy-manager) that spreads funds across ERC-4626-compliant yield protocols — currently Morpho, AutoFinance, and Avantis. Yield accrues as the vault's share price rises. When you withdraw, your **tIDRX** receipt burns and the protocol returns IDRX equal to your proportional share of the vault.
+When you deposit, the protocol routes your stablecoin through an automatic swap to the vault's underlying asset (currently USDC) and allocates the proceeds across diversified DeFi yield protocols. Yield accrues as the vault's share value rises. When you withdraw, your receipt token (currently tIDRX) burns and the protocol returns your stablecoin equal to your proportional share of the vault — typically more than you deposited if yield has accrued.
 
 ```mermaid
 flowchart LR
-    User -->|IDRX| Router[TumbuhRouter]
-    Router -->|USDC| Vault[TumbuhVault]
+    User -->|Stablecoin| Router[TumbuhRouter]
+    Router -->|Vault asset| Vault[TumbuhVault]
     Vault --> SM[StrategyManager]
-    SM --> Morpho[Morpho]
-    SM --> Auto[AutoFinance]
-    SM --> Avantis[Avantis]
-    SM -.->|"any ERC-4626"| Other[Other vaults]
+    SM --> P1[Yield protocol 1]
+    SM --> P2[Yield protocol 2]
+    SM --> P3[Yield protocol 3]
+    SM -.->|"more protocols can be added"| Other[Other protocols]
 ```
 
-The protocol supports any ERC-4626-compliant vault through a generic adapter, so the strategy set can grow without contract upgrades.
+The protocol is designed to grow its strategy set over time without contract upgrades — new yield protocols plug in through a generic adapter pattern.
 
 ## Who this is for
 
 <CardGroup cols={2}>
   <Card title="I'm a depositor" icon="user" href="/how-it-works/getting-started">
-    Connect a Base wallet, deposit IDRX, earn yield, withdraw when you want.
+    Connect a Base wallet on [app.tumbuh.fi](https://app.tumbuh.fi), deposit, earn yield, withdraw when you want.
   </Card>
   <Card title="I'm a developer" icon="code" href="/developers/integration-guide">
     Contract addresses, interface signatures, integration examples, and an adapter authoring guide.
@@ -42,12 +42,13 @@ The protocol supports any ERC-4626-compliant vault through a generic adapter, so
 ## Audit status
 
 <Warning>
-Tumbuh V3 is not yet audited. Do not deposit funds you cannot afford to lose. Audit progress and known risks live on the [Risks & disclosures](/security/risks-and-disclosures) page.
+Tumbuh is not yet audited. Do not deposit funds you cannot afford to lose. Audit progress and known risks live on the [Risks & disclosures](/security/risks-and-disclosures) page.
 </Warning>
 
 ## Where to go next
 
 - [Getting started](/how-it-works/getting-started) — your first deposit, step by step.
 - [How it works](/how-it-works/overview) — the full deposit, earn, and withdraw loop in one page.
+- [FAQ](/faq) — quick answers to common questions.
 - [Security](/security/access-control) — the role matrix, pause scope, and known risks.
 - [Developers](/developers/contract-addresses) — addresses, interfaces, and integration guide.
