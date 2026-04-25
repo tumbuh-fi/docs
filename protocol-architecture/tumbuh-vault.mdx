@@ -7,7 +7,7 @@ icon: "vault"
 
 # TumbuhVault
 
-The TumbuhVault is the protocol's accounting engine. It tracks the vault's underlying asset (currently USDC), issues vault positions to its depositors, and forwards capital to the strategy allocator that distributes it across yield protocols.
+The TumbuhVault is the protocol's accounting engine. It tracks the vault asset, issues vault positions to its depositors, and forwards capital to the strategy allocator that distributes it across yield protocols.
 
 The vault is intentionally narrow. It does not manage strategies, swap tokens, or track per-user positions — those are other components' jobs. Its responsibilities are share accounting, fee collection (when the new fee model is live), and forwarding capital to the strategy allocator.
 

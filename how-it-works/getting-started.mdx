@@ -7,7 +7,7 @@ icon: "rocket"
 
 # Getting started
 
-Open [app.tumbuh.fi](https://app.tumbuh.fi), connect an EVM-compatible Web3 wallet, and deposit a supported stablecoin (currently IDRX). This page walks through your first deposit and how to keep an eye on your position afterward.
+Open [app.tumbuh.fi](https://app.tumbuh.fi), connect an EVM-compatible Web3 wallet, and deposit a supported asset. This page walks through your first deposit and how to keep an eye on your position afterward.
 
 ## Your first deposit
 
@@ -30,12 +30,12 @@ Open [app.tumbuh.fi](https://app.tumbuh.fi), connect an EVM-compatible Web3 wall
     </Frame>
   </Step>
 
-  <Step title="Approve the protocol (one-time per stablecoin)">
-    Your wallet asks you to sign an approval that lets the protocol pull the deposit amount. This is a standard Web3 step and only happens once per stablecoin.
+  <Step title="Approve the protocol (one-time per asset)">
+    Your wallet asks you to sign an approval that lets the protocol pull the deposit amount. This is a standard Web3 step and only happens once per deposit asset.
 
     {/* TODO: replace with app screenshot */}
-    <Frame caption="Wallet approval prompt for the entry stablecoin">
-      ![Wallet approval prompt for the entry stablecoin](/images/checks-passed.png)
+    <Frame caption="Wallet approval prompt for the deposit asset">
+      ![Wallet approval prompt for the deposit asset](/images/checks-passed.png)
     </Frame>
   </Step>
 
@@ -49,7 +49,7 @@ Open [app.tumbuh.fi](https://app.tumbuh.fi), connect an EVM-compatible Web3 wall
   </Step>
 
   <Step title="Receive your receipt token">
-    The app and your wallet both show your receipt-token balance (currently tIDRX), which represents your deposit. The receipt is your proof of position; the actual yield-bearing position is recorded against your address by the protocol.
+    The app and your wallet both show your receipt-token balance, which represents your deposit. The receipt is your proof of position; the actual yield-bearing position is recorded against your address by the protocol.
 
     {/* TODO: replace with app screenshot */}
     <Frame caption="Position visible on your dashboard after a successful deposit">
@@ -60,7 +60,7 @@ Open [app.tumbuh.fi](https://app.tumbuh.fi), connect an EVM-compatible Web3 wall
 
 ## About your receipt token
 
-Your receipt token (currently tIDRX) is a confirmation of how much stablecoin you originally deposited — minted 1:1 with the gross deposit. Your yield lives in the vault, not in the receipt. The receipt's balance does not rise as yield accrues; you see your yield at withdrawal, when the receipt burns for more stablecoin than you deposited.
+Your receipt token is a confirmation of how much you originally deposited — minted 1:1 with the gross deposit. Your yield lives in the vault, not in the receipt. The receipt's balance does not rise as yield accrues; you see your yield at withdrawal, when the receipt burns for more than you deposited.
 
 ## Setting slippage
 

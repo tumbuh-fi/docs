@@ -1,23 +1,23 @@
 ---
 title: "Introduction"
-description: "Tumbuh is a yield aggregation vault on Base that turns your stablecoin (currently IDRX) into diversified, on-chain savings."
+description: "Tumbuh is a yield aggregation vault on Base that turns your deposit asset into diversified, on-chain savings."
 sidebarTitle: "Introduction"
 icon: "leaf"
 ---
 
 # Welcome to Tumbuh
 
-Tumbuh is a yield aggregation vault on **Base** that lets you deposit a supported stablecoin (currently IDRX) and earn yield across multiple DeFi protocols without managing positions yourself. The protocol routes your deposit through an automatic swap, allocates the proceeds across a diversified set of yield protocols, and pays the yield back as a steadily rising share value.
+Tumbuh is a yield aggregation vault on **Base** that lets you deposit a supported asset and earn yield across multiple DeFi protocols without managing positions yourself. The protocol routes your deposit through an automatic swap, allocates the proceeds across a diversified set of yield protocols, and pays the yield back as a steadily rising share value.
 
-The name *tumbuh* means "to grow" in Bahasa Indonesia. Today the protocol accepts IDRX as its first entry asset; additional supported stablecoins can be added over time without changes to the underlying vault.
+The name *tumbuh* means "to grow" in Bahasa Indonesia. The protocol's currently supported assets are listed on the [Tokens](/tokens) page; additional deposit assets can be added over time without changes to the underlying vault.
 
 ## What Tumbuh does
 
-When you deposit, the protocol routes your stablecoin through an automatic swap to the vault's underlying asset (currently USDC) and allocates the proceeds across diversified DeFi yield protocols. Yield accrues as the vault's share value rises. When you withdraw, your receipt token (currently tIDRX) burns and the protocol returns your stablecoin equal to your proportional share of the vault — typically more than you deposited if yield has accrued.
+When you deposit, the protocol routes your asset through an automatic swap to the vault asset and allocates the proceeds across diversified DeFi yield protocols. Yield accrues as the vault's share value rises. When you withdraw, your receipt token burns and the protocol returns your asset equal to your proportional share of the vault — typically more than you deposited if yield has accrued.
 
 ```mermaid
 flowchart LR
-    User -->|Stablecoin| Router[TumbuhRouter]
+    User -->|Deposit asset| Router[TumbuhRouter]
     Router -->|Vault asset| Vault[TumbuhVault]
     Vault --> SM[StrategyManager]
     SM --> P1[Yield protocol 1]
