@@ -13,15 +13,15 @@ Entries are alphabetical.
 
 ### `ADMIN_MANAGER`
 
-A role on the [TumbuhRouter](/protocol-architecture/tumbuh-router) that controls the swap-percentage parameter and the minimum deposit amount. Distinct from `OPERATOR_ROLE` to keep router-level configuration separate from vault and strategy operations. See [Access control](/security/access-control).
+A role on the [TumbuhRouter](/protocol-architecture/tumbuh-router) that controls the entry-layer parameters. Distinct from `OPERATOR_ROLE` to keep entry-layer configuration separate from vault and strategy operations. See [Access control](/security/access-control).
 
 ### Adapter
 
-A contract that bridges the [StrategyManager](/protocol-architecture/strategy-manager) to an external yield protocol. Tumbuh ships two adapters: `GenericERC4626Strategy` (works with any ERC-4626 vault) and `MorphoStrategy` (adds Morpho's reward-claiming logic). See [Adapters](/protocol-architecture/adapters).
+A contract that bridges the [StrategyManager](/protocol-architecture/strategy-manager) to an external yield protocol. Tumbuh ships a generic ERC-4626 adapter and a specialised one for protocols that pay rewards through a Merkle distributor. See [Adapters](/protocol-architecture/adapters).
 
 ### Basis points (bps)
 
-A unit of measurement for percentages. 100 bps equals 1%, 10000 bps equals 100%. Tumbuh uses bps throughout: the swap percentage is bounded between 7000 and 9000 bps, and the maximum performance fee is 3000 bps.
+A unit of measurement for percentages. 100 bps equals 1%, 10000 bps equals 100%.
 
 ### `DEFAULT_ADMIN_ROLE`
 
@@ -37,59 +37,59 @@ The Ethereum standard for namespaced storage layouts in upgradeable contracts. T
 
 ### `GUARDIAN_ROLE`
 
-A role with pause authority on the Vault, StrategyManager, and Router, and the authority to call `emergencyWithdrawStrategy`. See [Pausability and emergency](/security/pausability-emergency).
+A role with pause authority on the vault, strategy allocator, and entry layer, and the authority to force-exit a misbehaving yield protocol. See [Pausability and emergency](/security/pausability-emergency).
 
 ### High-watermark (HWM)
 
-The all-time-high `totalAssets()` value the Vault has reached. Performance fees only apply to profit *above* the HWM; drawdowns never trigger a fee. The HWM resets upward on every successful `collectFee` call. See [Fees and yield](/fees-and-yield).
+**Coming soon.** Part of the previous performance-fee design, currently retired. **No performance fee is charged today.** This entry will be updated when the new fee model is ready.
 
 ### IDRX
 
-A Rupiah-pegged stablecoin, 2 decimals. The current entry asset for Tumbuh deposits. See [Tokens](/tokens#idrx).
+A stablecoin issued by an external project. The current entry asset for Tumbuh deposits, 2 decimals on Base. See [Tokens](/tokens#idrx).
 
 ### `OPERATOR_ROLE`
 
-A role with day-to-day operational authority on the Vault and StrategyManager: collect performance fees, add or remove strategies, rebalance, and claim-and-compound rewards. See [Access control](/security/access-control).
+A role with day-to-day operational authority on the vault and strategy allocator: add or remove yield protocols, rebalance, and trigger reward claiming. See [Access control](/security/access-control).
 
 ### Receipt token
 
-A token that represents a deposit position without rebasing or accruing yield in the holder's wallet. tIDRX is a receipt token: its balance does not rise; the underlying value lives in vault shares held by the Router on the holder's behalf.
+A token that represents a deposit position without rebasing or accruing yield in the holder's wallet. tIDRX is the current receipt token: its balance does not rise; the underlying value lives in the vault held by the protocol on the holder's behalf.
 
-### Share price
+### Share value
 
-`totalAssets() / totalSupply()` for the Vault. As yield accrues, `totalAssets()` rises while `totalSupply()` stays flat (outside of fee mints), so the share price rises. Each share is worth more USDC over time. See [Fees and yield](/fees-and-yield).
+The vault's value divided by the share count. As yield accrues, the value rises while the share count is unchanged outside fee mints (none today), so each share is worth more of the vault asset over time. See [Yield generation](/how-it-works/yield-generation).
 
 ### Slippage
 
-The difference between the expected and actual price when assets move through an external market. Tumbuh users encounter slippage during the IDRX↔USDC swap and during external strategy redemptions.
+The difference between the expected and actual price when assets move through an external market. Tumbuh users encounter slippage during the stablecoin↔vault-asset swap and during yield-protocol redemptions.
 
 ### Slippage isolation
 
-A property of Tumbuh's withdrawal accounting: when you redeem, any slippage incurred while closing your portion of the strategy positions is paid from your proceeds, not shared with other vault holders. This keeps share price stable for holders who did not initiate a withdrawal. Worked example in [Fees and yield](/fees-and-yield).
+A property of Tumbuh's withdrawal accounting: when you withdraw, any cost incurred while closing your portion of the yield-protocol positions is paid from your proceeds, not shared with other vault holders. This keeps share value stable for holders who did not initiate a withdrawal. See [Withdraw flow](/how-it-works/withdraw-flow#why-your-output-may-differ-slightly-from-the-estimate).
 
 ### Soulbound token
 
-An ERC-20 that cannot be transferred between non-zero addresses. tIDRX is soulbound: only mint (from `address(0)`) and burn (to `address(0)`) are allowed. The Router enforces this in `_update`.
+An ERC-20 that cannot be transferred between non-zero addresses. tIDRX is soulbound: only mint (from `address(0)`) and burn (to `address(0)`) are allowed.
 
 ### StrategyManager
 
-The contract that allocates vault USDC across active strategies, rebalances toward target percentages, and triggers reward claiming. Up to 10 strategies can be active at once. See [Strategy manager](/protocol-architecture/strategy-manager).
+The contract that allocates the vault's capital across active yield protocols, rebalances toward target allocations, and triggers reward claiming. Up to 10 yield protocols can be active at once. See [Strategy manager](/protocol-architecture/strategy-manager).
 
 ### SwapContract
 
-A thin wrapper around the 0x API v2 AllowanceHolder. The Router and StrategyManager call it for IDRX↔USDC and reward-token-to-USDC swaps. See [Swap contract](/protocol-architecture/swap-contract).
+The thin swap layer that connects Tumbuh to external markets. The router and the strategy allocator call it to swap between assets through an external swap aggregator (currently 0x). See [Swap contract](/protocol-architecture/swap-contract).
 
 ### tIDRX
 
-The Tumbuh receipt token. Soulbound, 2 decimals, minted 1:1 with the gross IDRX you deposit. Its balance never rises — yield lives in vault shares held by the Router. You see the yield at redemption when tIDRX burns for more IDRX than you deposited. See [Tokens](/tokens#tidrx).
+The Tumbuh receipt token (current). Soulbound, 2 decimals, minted 1:1 with the gross stablecoin amount you deposit. Its balance never rises — yield lives in the vault held by the protocol. You see the yield at withdrawal when tIDRX burns for more stablecoin than you deposited. See [Tokens](/tokens#tidrx).
 
 ### TumbuhRouter
 
-The user-facing entry point. Splits IDRX between a swap-to-USDC path and an idle balance, deposits the USDC into the Vault, and mints tIDRX as a receipt. The Router holds vault shares on behalf of users. See [Router](/protocol-architecture/tumbuh-router).
+The user-facing entry layer. Splits your stablecoin between a swap-to-vault-asset path and an idle balance, places the swapped portion into the vault, and issues the receipt token. Holds vault positions on behalf of users. See [Router](/protocol-architecture/tumbuh-router).
 
 ### TumbuhVault
 
-The ERC-4626 vault denominated in USDC. Holds idle USDC and delegates allocation to the StrategyManager. See [Vault](/protocol-architecture/tumbuh-vault).
+The vault, denominated in the vault's current underlying asset (USDC). Holds idle vault asset and delegates allocation to the strategy allocator. See [Vault](/protocol-architecture/tumbuh-vault).
 
 ### Universal Rewards Distributor (URD)
 
@@ -97,7 +97,7 @@ Morpho's contract for distributing reward tokens via Merkle proofs. The MorphoSt
 
 ### USDC
 
-The vault's accounting asset, 6 decimals on Base. The integrated yield protocols denominate in USDC, so the Vault matches them. See [Tokens](/tokens#usdc).
+The vault's accounting asset (currently), 6 decimals on Base. The vault is currently denominated in USDC to match the integrated yield protocols' denomination. See [Tokens](/tokens#usdc).
 
 ### UUPS
 

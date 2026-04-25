@@ -12,86 +12,82 @@ Quick answers to the questions that come up most often. For long-form explanatio
 <AccordionGroup>
 
 <Accordion title="What does Tumbuh do?" icon="leaf">
-Tumbuh is a yield aggregation vault on Base. You deposit IDRX, the protocol routes it through a swap to USDC and across multiple ERC-4626 yield protocols, and pays the yield back as a steadily rising share price. When you withdraw, you receive IDRX equal to your proportional share of the vault — typically more than you deposited if yield has accrued.
+Tumbuh is a yield aggregation vault on Base. You deposit a supported stablecoin (currently IDRX), the protocol routes it through an automatic swap to the vault's underlying asset (currently USDC) and across multiple DeFi yield protocols, and pays the yield back as a steadily rising share value. When you withdraw, you receive your stablecoin equal to your proportional share of the vault — typically more than you deposited if yield has accrued.
 
 See [How it works](/how-it-works/overview) for the full loop.
 </Accordion>
 
 <Accordion title="Do I need USDC to deposit?" icon="coins">
-No. You deposit IDRX. The Router automatically swaps a portion to USDC behind the scenes through 0x. The Vault is denominated in USDC because the integrated yield protocols are; you never have to hold USDC directly.
+No. You deposit your stablecoin (currently IDRX). The protocol automatically swaps a portion to the vault's underlying asset (currently USDC); you never have to hold USDC directly.
 
-See [Tokens](/tokens) for how IDRX, USDC, and tIDRX relate.
+See [Tokens](/tokens) for how the entry stablecoin, the vault asset, and the receipt token relate.
 </Accordion>
 
-<Accordion title="Why do I receive tIDRX instead of vault shares?" icon="receipt">
-tIDRX is your **receipt** — proof that you deposited a specific amount of IDRX. The actual yield-bearing position (vault shares) is held by the Router on your behalf and tracked under your address.
+<Accordion title="Why do I receive a receipt token instead of vault shares?" icon="receipt">
+The receipt token (currently tIDRX) is your **receipt** — proof that you deposited a specific amount of stablecoin. The actual yield-bearing position is held by the protocol on your behalf and tracked under your address.
 
-This indirection lets you think in IDRX even though the Vault accounts in USDC. It also lets the Router add new input assets in the future without changing the Vault.
+This indirection lets you think in your stablecoin terms even though the vault accounts in a different asset. It also lets the protocol add new entry stablecoins in the future without changes to the vault.
 
 See [Tokens → tIDRX](/tokens#tidrx) for the full explanation.
 </Accordion>
 
-<Accordion title="Why is tIDRX non-transferable?" icon="lock">
-tIDRX is tied to the Router's per-user accounting. If you could transfer tIDRX to another wallet, the receipt and the underlying position would diverge — the new holder would have tIDRX with no claim, and the original holder would have a claim with no proof. Soulbound enforcement keeps the receipt and the position bound to the same address.
+<Accordion title="Why is the receipt token non-transferable?" icon="lock">
+The receipt token is tied to the protocol's per-user accounting. If you could transfer it to another wallet, the receipt and the underlying position would diverge — the new holder would have a receipt with no claim, and the original holder would have a claim with no proof. Soulbound enforcement keeps the receipt and the position bound to the same address.
 
-To move funds between addresses, redeem on the source address and deposit from the destination address — a round-trip that incurs swap slippage in both directions.
+To move funds between addresses, withdraw on the source address and deposit from the destination address — a round-trip that incurs swap slippage in both directions.
 </Accordion>
 
 <Accordion title="Where does my yield come from?" icon="trending-up">
-The Vault deploys USDC across multiple external ERC-4626 yield protocols — Morpho, AutoFinance, Avantis, and any other protocol added in the future. Each one earns yield on its own (lending, looped strategies, market making, or other mechanics).
+The vault deploys capital across a diversified set of DeFi yield protocols. Each one earns yield on its own (lending, looped strategies, market making, or other mechanics).
 
-Tumbuh aggregates the result into a single rising share price. **Your tIDRX balance does not rise as yield accrues** — yield lives in the vault shares the Router holds for you, and you see it at redemption when your tIDRX burns for more IDRX than you deposited.
+Tumbuh aggregates the result into a single rising share value. **Your receipt-token balance does not rise as yield accrues** — yield lives in the vault, and you see it at withdrawal when your receipt burns for more stablecoin than you deposited.
 
 See [Yield generation](/how-it-works/yield-generation).
 </Accordion>
 
 <Accordion title="Who controls my funds?" icon="shield">
-- **You** control whether to deposit and when to redeem (via your wallet signing transactions).
-- **The Vault** holds USDC and shares on-chain.
-- **The Router** holds the vault shares attributed to you.
-- **The StrategyManager** allocates USDC across the integrated strategies.
-- **Admin keys** (`DEFAULT_ADMIN_ROLE`, `OPERATOR_ROLE`, `GUARDIAN_ROLE`, `ADMIN_MANAGER`) can configure parameters, pause, and upgrade contracts. There is no on-chain timelock today — admin actions take effect immediately.
+- **You** control whether to deposit and when to withdraw (via your wallet signing transactions).
+- **The vault** holds the vault asset on-chain.
+- **The protocol's entry layer** holds the vault positions attributed to you.
+- **The strategy allocator** distributes capital across the integrated yield protocols.
+- **Admin keys** held by the Tumbuh team can configure parameters, pause for emergencies, and upgrade contracts. There is no on-chain timelock today — admin actions take effect immediately.
 
 See [Access control](/security/access-control) for the role matrix and [Risks](/security/risks-and-disclosures#admin-key-risk) for the residual admin-key risk.
 </Accordion>
 
-<Accordion title="What happens if one strategy protocol fails?" icon="triangle-exclamation">
-A failure in any single integrated protocol (Morpho, AutoFinance, Avantis, or any future addition) translates to a proportional loss for Tumbuh holders. Diversification across multiple strategies reduces exposure but does not eliminate it.
+<Accordion title="What happens if one yield protocol fails?" icon="triangle-exclamation">
+A failure in any single integrated protocol translates to a proportional loss for Tumbuh holders. Diversification across multiple protocols reduces exposure but does not eliminate it.
 
-The Vault's `totalAssets()` falls back to the strategy's last-known value if its `convertToAssets` call reverts, so a broken external vault cannot brick TVL reads. The Guardian can call `emergencyWithdrawStrategy` to force-exit a misbehaving strategy.
+The vault's value reading falls back to the protocol's last known value if its live reading fails, so a broken integration cannot block the vault. The protocol's guardian role can force-exit a misbehaving integration.
 
 See [External protocol risk](/security/risks-and-disclosures#external-protocol-risk).
 </Accordion>
 
 <Accordion title="What are the fees?" icon="calculator">
-Tumbuh charges a single **performance fee on profit above the all-time high**. The rate is bounded at 30% (3000 bps), set by the Operator. There are no entry, exit, or management fees.
-
-The fee only applies to gains above the high-watermark — drawdowns never trigger a fee. Fees are paid in vault shares to the treasury, not deducted from your IDRX.
-
-See [Fees and yield](/fees-and-yield) for the mechanics and a worked example.
+**Coming soon.** The fee model is being redesigned. **No fees of any kind are charged today** — there are no entry, exit, management, or performance fees while the new model is in design. The new design will be posted on [Fees and yield](/fees-and-yield) when ready.
 </Accordion>
 
 <Accordion title="Is the protocol audited?" icon="circle-check">
-**Not yet.** Tumbuh V3 has not been audited by a third-party firm. Until an audit completes, assume higher residual smart-contract risk than a comparable audited protocol. Audit progress will be posted on the [Risks and disclosures](/security/risks-and-disclosures) page when available.
+**Not yet.** Tumbuh has not been audited by a third-party firm. Until an audit completes, assume higher residual smart-contract risk than a comparable audited protocol. Audit progress will be posted on the [Risks and disclosures](/security/risks-and-disclosures) page when available.
 </Accordion>
 
 <Accordion title="Can I withdraw any time?" icon="arrow-up-from-line">
-Yes, subject to gas costs and slippage. Call `redeemWithSwap` and you receive IDRX in the same transaction. There is no lockup, no withdrawal queue, and no minimum hold period.
+Yes, subject to gas and slippage. You initiate withdrawal on [app.tumbuh.fi](https://app.tumbuh.fi); the stablecoin returns to your wallet in the same transaction. There is no lockup, no withdrawal queue, and no minimum hold period.
 
-The exception is when the Router is paused — see [What if the Router stops working?](#what-if-the-router-stops-working) below.
+The exception is when the protocol is paused — see [What if the entry layer stops working?](#what-if-the-entry-layer-stops-working) below.
 
 See [Withdraw flow](/how-it-works/withdraw-flow) for the full sequence.
 </Accordion>
 
-<Accordion title="Why did I get slightly less IDRX back than I deposited?" icon="arrow-down">
+<Accordion title="Why did I get slightly less stablecoin back than I deposited?" icon="arrow-down">
 Two sources contribute to the difference:
 
-- **Swap slippage.** Both deposit and redeem involve IDRX↔USDC swaps through 0x. The market rate at execution may differ slightly from the quote.
-- **External-protocol exit slippage.** When the Vault redeems your portion of the strategy positions, the external vault may pay out slightly less than its `convertToAssets` quote because of withdrawal fees, looped-position unwinding, or rounding.
+- **Swap rate movement.** Both deposit and withdraw involve swaps between your stablecoin and the vault asset. The market rate at execution may differ slightly from the rate when you reviewed the estimate.
+- **Yield-protocol exit cost.** When the vault redeems your portion of the yield-protocol positions, an integrated protocol may pay out slightly less than its quoted value because of withdrawal fees, looped-position unwinding, or rounding.
 
-The exit slippage is **isolated to you** — it does not reduce share price for other holders. This keeps the system fair: the user who triggers the strategy exit pays the cost of that exit.
+The exit cost is **isolated to you** — it does not reduce share value for other holders. This keeps the system fair: the user who triggered the strategy exit pays the cost of that exit.
 
-If yield has accrued long enough to outweigh both, you receive more IDRX than you deposited. See [Slippage isolation](/fees-and-yield#slippage-isolation).
+If yield has accrued long enough to outweigh both, you receive more stablecoin than you deposited. See [Slippage isolation](/fees-and-yield#slippage-isolation).
 </Accordion>
 
 <Accordion title="What network is it on?" icon="network-wired">
@@ -101,25 +97,23 @@ See [Contract addresses](/developers/contract-addresses).
 </Accordion>
 
 <Accordion title="Is there a mobile UI or web app?" icon="mobile">
-Tumbuh is a smart-contract protocol. The interface you use to deposit and withdraw is built and operated separately from the protocol contracts. If you are evaluating a specific frontend or mobile app, verify it interacts with the addresses listed in [Contract addresses](/developers/contract-addresses) — no other interface is endorsed by the protocol.
+Yes. The official web app is at [app.tumbuh.fi](https://app.tumbuh.fi). It is the recommended way to deposit, withdraw, and check your position.
 </Accordion>
 
 <Accordion title="What if the website is down?" icon="globe">
-The website is a frontend. Your position lives on-chain — the Vault's shares, the Router's `userVaultShares` mapping, and your tIDRX balance — and is independent of any specific website. As long as you can submit transactions to Base and call the Router directly, you can deposit and withdraw without a website.
+Your position lives on-chain and is independent of any specific website. As long as you can submit transactions to Base, your funds are safe even if the web app is temporarily unavailable.
 
-The technical-minded can call `depositWithSwap` and `redeemWithSwap` directly via Etherscan, a Foundry script, or any wallet that supports custom contract calls. See the [Integration guide](/developers/integration-guide).
+Developer-oriented users can interact directly with the contracts; see the [Integration guide](/developers/integration-guide).
 </Accordion>
 
-<Accordion title="What if the Router stops working?" icon="route">
-Vault shares are held by the Router on your behalf, so a broken Router blocks normal redemptions. If the Router is paused indefinitely, upgraded incorrectly, or otherwise unable to execute `redeemWithSwap`, recovery requires admin coordination.
+<Accordion title="What if the entry layer stops working?" icon="route">
+Your vault position is held by the protocol's entry layer on your behalf, so a broken entry layer blocks normal withdrawals. If the entry layer is paused indefinitely, upgraded incorrectly, or otherwise unable to process withdrawals, recovery requires admin coordination.
 
-`DEFAULT_ADMIN_ROLE` retains the ability to call `vault.redeem` directly via the `onlyAuthorized` modifier. The full procedure is documented in the [Router recovery runbook](/security/risks-and-disclosures#router-recovery-runbook).
-
-This is the largest user-facing dependency in the protocol — worth understanding before depositing.
+The procedure is documented in the [Router recovery runbook](/security/risks-and-disclosures#router-recovery-runbook). This is the largest user-facing dependency in the protocol — worth understanding before depositing.
 </Accordion>
 
 <Accordion title="Can Tumbuh support other input tokens in the future?" icon="arrow-right-arrow-left">
-Yes — the Router is the extensibility point for additional input assets. Today the Router accepts IDRX. A future Router instance (or this Router upgraded) could accept a different stablecoin or other input asset without changing the Vault, because the Vault is denominated in USDC and the Router does the input-asset conversion.
+Yes — the protocol's entry layer is the extensibility point for additional supported stablecoins. Today the entry layer accepts IDRX. A future entry layer (or this one upgraded) could accept additional supported stablecoins without changes to the underlying vault, because the vault is denominated in the vault asset and the entry layer does the input-asset conversion.
 
 Whether and when to add another input asset is a protocol decision, not a contract limitation.
 </Accordion>
@@ -131,7 +125,7 @@ Whether and when to add another input asset is a protocol decision, not a contra
 If your question is not answered here, the longer pages are organized by topic:
 
 - [How it works](/how-it-works/overview) — what happens when you deposit, earn, and withdraw.
-- [Tokens](/tokens) — IDRX, USDC, and tIDRX explained.
-- [Fees and yield](/fees-and-yield) — performance fee mechanics and slippage isolation.
+- [Tokens](/tokens) — the entry stablecoin, the vault asset, and the receipt token explained.
+- [Fees and yield](/fees-and-yield) — slippage isolation and the upcoming fee model.
 - [Security](/security/access-control) — roles, pause scope, upgrades, invariants, and known risks.
 - [Developers](/developers/integration-guide) — for integrators building on Tumbuh.
