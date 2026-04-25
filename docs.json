@@ -1,126 +1,112 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Tumbuh",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#0E8A5F",
+    "light": "#22C38C",
+    "dark": "#0A5E41"
   },
   "favicon": "/favicon.svg",
-  "navigation": {
-    "tabs": [
-      {
-        "tab": "Guides",
-        "groups": [
-          {
-            "group": "Getting started",
-            "pages": [
-              "index",
-              "quickstart",
-              "development"
-            ]
-          },
-          {
-            "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/components",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "Agent ready",
-            "pages": [
-              "agent-ready/prompt",
-              "agent-ready/visibility",
-              "agent-ready/contextual",
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "API reference",
-        "groups": [
-          {
-            "group": "API documentation",
-            "pages": [
-              "api-reference/introduction"
-            ]
-          },
-          {
-            "group": "Endpoint examples",
-            "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
-            ]
-          }
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
   "logo": {
     "light": "/logo/light.svg",
     "dark": "/logo/dark.svg"
   },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Introduction",
+        "pages": ["introduction"]
+      },
+      {
+        "group": "How it works",
+        "pages": [
+          "how-it-works/getting-started",
+          "how-it-works/overview",
+          "how-it-works/deposit-flow",
+          "how-it-works/yield-generation",
+          "how-it-works/withdraw-flow"
+        ]
+      },
+      {
+        "group": "Protocol architecture",
+        "pages": [
+          "protocol-architecture/overview",
+          "protocol-architecture/tumbuh-router",
+          "protocol-architecture/tumbuh-vault",
+          "protocol-architecture/strategy-manager",
+          "protocol-architecture/adapters",
+          "protocol-architecture/swap-contract"
+        ]
+      },
+      {
+        "group": "Tokens",
+        "pages": ["tokens"]
+      },
+      {
+        "group": "Fees and yield",
+        "pages": ["fees-and-yield"]
+      },
+      {
+        "group": "Security",
+        "pages": [
+          "security/access-control",
+          "security/pausability-emergency",
+          "security/upgradeability",
+          "security/invariants",
+          "security/risks-and-disclosures"
+        ]
+      },
+      {
+        "group": "Integrations",
+        "pages": [
+          "integrations",
+          "integrations-add-new-protocol"
+        ]
+      },
+      {
+        "group": "Developers",
+        "pages": [
+          "developers/contract-addresses",
+          "developers/interfaces",
+          "developers/integration-guide",
+          "developers/adapter-guide",
+          "developers/scripts-and-tooling"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": ["faq", "glossary"]
+      }
+    ]
+  },
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "label": "GitHub",
+        "href": "https://github.com/tumbuh-fi"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
+    ]
   },
   "contextual": {
     "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "x": "https://x.com/tumbuh_fi",
+      "github": "https://github.com/tumbuh-fi"
     }
+  },
+  "seo": {
+    "indexing": "navigable"
   }
 }

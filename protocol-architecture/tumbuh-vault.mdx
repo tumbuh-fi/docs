@@ -1,0 +1,120 @@
+---
+title: "TumbuhVault"
+description: "The ERC-4626 USDC vault. Holds idle USDC, mints shares, collects performance fees, and delegates allocation to the StrategyManager."
+sidebarTitle: "TumbuhVault"
+icon: "vault"
+---
+
+# TumbuhVault
+
+The TumbuhVault is the ERC-4626 vault at the center of the protocol. It is denominated in **USDC** (6 decimals) and issues vault shares (9 decimals) to its depositors. Idle USDC sits in the Vault contract; everything else is delegated to the [StrategyManager](/protocol-architecture/strategy-manager).
+
+The Vault is intentionally narrow. It does not manage strategies, swap tokens, or track per-user positions — that is the Router's job. Its responsibilities are share accounting, fee collection, and forwarding capital to the StrategyManager.
+
+## Key state
+
+| Storage | Type | Purpose |
+|---|---|---|
+| `strategyManager` | `address` | The StrategyManager that allocates this Vault's USDC. |
+| `router` | `address` | The Router authorized to call `deposit` and `redeem`. |
+| `treasury` | `address` | Recipient of performance-fee shares. |
+| `performanceFeeBps` | `uint16` | Performance fee in bps. Bounded 0–3000. |
+| `highWaterMark` | `uint256` | All-time high `totalAssets()` value. Performance fee only applies above this. |
+
+## ERC-4626 surface
+
+The Vault implements ERC-4626 with a deliberate restriction: only **`deposit`** and **`redeem`** are functional. **`mint` and `withdraw` revert with `NotImplemented`** — by design.
+
+<Warning>
+The Vault's `mint(shares, receiver)` and `withdraw(assets, receiver, owner)` functions revert with `NotImplemented()`. Use `deposit` and `redeem` exclusively. Standard ERC-4626 integrations that auto-pick `withdraw` will fail; integrators must route exits through `redeem`.
+</Warning>
+
+### `deposit`
+
+```solidity
+function deposit(uint256 assets, address receiver) public override onlyAuthorized returns (uint256 shares);
+```
+
+Pulls USDC from the caller, mints shares to `receiver`, and forwards the USDC to the StrategyManager via `deployFunds`. **`onlyAuthorized` restricts the caller to the Router or `DEFAULT_ADMIN_ROLE`** — regular users cannot call `deposit` directly, only via the Router.
+
+### `redeem`
+
+```solidity
+function redeem(uint256 shares, address receiver, address _owner) public override onlyAuthorized returns (uint256 assets);
+```
+
+Burns `shares` from `_owner`, pulls USDC from the StrategyManager (via `withdrawFunds`) if idle balance is insufficient, and transfers the actual USDC received to `receiver`. The return value reflects what was actually received from strategies, not the optimistic `convertToAssets` estimate — this is how [slippage isolation](/fees-and-yield#slippage-isolation) works.
+
+### `mint` / `withdraw`
+
+```solidity
+function mint(uint256, address) public pure override returns (uint256);    // reverts NotImplemented
+function withdraw(uint256, address, address) public pure override returns (uint256); // reverts NotImplemented
+```
+
+## View functions
+
+| Function | Returns |
+|---|---|
+| `totalAssets()` | Idle USDC plus the StrategyManager's TVL (with try/catch fallback per strategy). |
+| `convertToAssets(uint256 shares)` | USDC value of `shares` at current share price. |
+| `convertToShares(uint256 assets)` | Share count for depositing `assets` USDC at current share price. |
+| `getHighWaterMark()` | Current HWM. |
+| `getPerformanceFee()` | Current performance fee in bps. |
+| `pendingPerformanceFee()` | `(feeAssets, feeShares)` that would be minted if `collectFee` ran now. Returns zero if no profit above HWM. |
+| `getStrategyManager()` | The StrategyManager address. |
+| `getTreasury()` | The treasury address. |
+
+## Admin functions
+
+### `DEFAULT_ADMIN_ROLE`
+
+| Function | Effect |
+|---|---|
+| `setStrategyManager(address newStrategyManager)` | Re-points to a different StrategyManager. Emits `StrategyManagerUpdated`. |
+| `setRouter(address newRouter)` | Re-wires the authorized Router. Emits `RouterUpdated`. |
+| `setTreasury(address newTreasury)` | Updates the fee recipient. Initializes HWM to current `totalAssets` on first call. Emits `TreasuryUpdated`. |
+
+### `OPERATOR_ROLE`
+
+| Function | Effect |
+|---|---|
+| `setPerformanceFee(uint16 newFeeBps)` | Updates the performance fee. **Bounded ≤ 3000 bps.** Initializes HWM on first non-zero set. Emits `PerformanceFeeUpdated`. |
+| `collectFee()` | Mints shares to treasury based on profit above HWM, then resets HWM upward. `nonReentrant`. Emits `PerformanceFeeCollected`. |
+
+### `GUARDIAN_ROLE`
+
+| Function | Effect |
+|---|---|
+| `pause()` | Blocks `deposit` and `redeem`. |
+| `unpause()` | Restores normal operation. |
+
+## Events
+
+| Event | Notes |
+|---|---|
+| `Deposit(caller, owner, assets, shares)` | Standard ERC-4626 event. Caller is always the Router or admin. |
+| `Withdraw(caller, receiver, owner, assets, shares)` | Standard ERC-4626 event from `redeem`. |
+| `PerformanceFeeCollected(profit, feeAssets, feeShares, treasury)` | Fired on every successful `collectFee`. `feeShares` are minted to `treasury`. |
+| `StrategyManagerUpdated`, `RouterUpdated`, `TreasuryUpdated`, `PerformanceFeeUpdated` | Admin-config tracking. |
+
+## Important caveats
+
+<Note>
+**The Vault uses a 3-decimal share offset.** USDC has 6 decimals, vault shares have 9 decimals. The offset is part of the standard inflation-attack protection — combined with dead shares minted to `0x...dEaD` at deployment, an attacker cannot front-run a depositor by donating dust to the Vault.
+</Note>
+
+<Note>
+**Performance fees are paid in shares, not USDC.** When `collectFee` runs, the Vault mints shares to the treasury equal in value to the fee. The treasury redeems shares for USDC at its own discretion. Holders' USDC value per share is not directly affected — the share count grows by the mint, which is mathematically equivalent to deducting the fee from `totalAssets`.
+</Note>
+
+<Note>
+**`totalAssets()` never reverts.** Per-strategy values are computed through `StrategyValueLib.getValueOrFallback`, which uses `try/catch` around the adapter's `convertToAssets` call. A broken external vault falls back to its `lastKnownValue` rather than bricking the read.
+</Note>
+
+## Related pages
+
+- [Fees and yield](/fees-and-yield) — high-watermark mechanics and worked example.
+- [StrategyManager](/protocol-architecture/strategy-manager) — what `deployFunds` and `withdrawFunds` do.
+- [Access control](/security/access-control) — role matrix and `onlyAuthorized` semantics.
+- [Invariants](/security/invariants) — including the `mint`/`withdraw` revert and decimals-offset invariants.

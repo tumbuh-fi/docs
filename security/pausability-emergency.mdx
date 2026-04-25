@@ -1,0 +1,85 @@
+---
+title: "Pausability and emergency"
+description: "Pause scope per contract, the emergency-withdraw mechanism, and what depositors can do while the protocol is paused."
+sidebarTitle: "Pausability and emergency"
+icon: "shield-halved"
+---
+
+# Pausability and emergency
+
+Tumbuh has three independently-pausable contracts (Router, Vault, StrategyManager) and one emergency exit path on the StrategyManager. All pause and emergency authority sits with `GUARDIAN_ROLE`.
+
+## Pause scope
+
+| Contract | Paused state blocks | Does not block |
+|---|---|---|
+| **TumbuhRouter** | `depositWithSwap`, `redeemWithSwap` | View functions; admin re-wiring |
+| **TumbuhVault** | `deposit`, `redeem` | `totalAssets`, `convertToAssets`, `pendingPerformanceFee`, `collectFee` |
+| **StrategyManager** | `deployFunds`, `withdrawFunds` | View functions; `addFarmStrategy`, `removeFarmStrategy`, `updateStrategyPercentages`, `rebalance`, `claimAndCompound`, `emergencyWithdrawStrategy` |
+| **SwapContract** | (no pause) | — |
+
+A pause on the Router is the most user-visible: regular users cannot deposit or redeem. A pause on the StrategyManager is the most cascading: the Vault's `deposit` and `redeem` will revert because they depend on `deployFunds` / `withdrawFunds`. A pause on the Vault directly blocks `deposit` and `redeem` even if the StrategyManager is healthy.
+
+The SwapContract has no pause. It is gated by `onlyAuthorized` (Router or StrategyManager only); pausing the Router and StrategyManager indirectly pauses all swap activity.
+
+## Pausing and unpausing
+
+```solidity
+function pause() external onlyRole(GUARDIAN_ROLE);
+function unpause() external onlyRole(GUARDIAN_ROLE);
+```
+
+`GUARDIAN_ROLE` calls `pause()` on each affected contract independently. There is no atomic protocol-wide pause — the Guardian must pause the Vault, StrategyManager, and Router separately if they want a full halt.
+
+For consistency, the deployment scripts include a `PauseAll.s.sol` operational helper that sequences the three pause calls. See [Scripts and tooling](/developers/scripts-and-tooling).
+
+<Warning>
+**While the Router is paused, you cannot deposit or withdraw.** Vault shares continue to earn yield in the strategies during a pause — the share price does not freeze. But you cannot move IDRX in or out until the pause is lifted.
+</Warning>
+
+## Emergency strategy withdrawal
+
+The Guardian can force-exit a single strategy via:
+
+```solidity
+function emergencyWithdrawStrategy(uint256 strategyId)
+    external
+    onlyRole(GUARDIAN_ROLE)
+    nonReentrant
+    returns (uint256 lostDeposits);
+```
+
+The function:
+
+1. Wraps the adapter's withdraw call in `try/catch`. If the external vault reverts, the function continues without halting.
+2. Recovers as much USDC as the adapter can return.
+3. Computes `lostDeposits = max(0, lastKnownValue - recovered)` and emits `EmergencyWithdrawSuccess(strategyId, recovered)` or `EmergencyWithdrawFailed(strategyId)` accordingly.
+4. Resets the strategy's accounting (`totalShares = 0`, `lastKnownValue = 0`) and deactivates it.
+5. Emits `EmergencyStrategyReset(strategyId)`.
+
+After an emergency withdraw, the strategy is inactive. The Operator can later call `reactivateStrategy(id)` to bring it back at 0% allocation if the underlying vault is healthy again.
+
+`emergencyWithdrawStrategy` is intentionally callable while the StrategyManager is paused. Pausing protects against new deposits and routine withdrawals; emergency exits are the escape hatch when a specific external vault goes wrong.
+
+## What users can do during a pause
+
+| Pause state | Can deposit? | Can redeem? | Other |
+|---|---|---|---|
+| Router only paused | No | No | Vault and SM still operate; admins can deposit directly via Vault |
+| Vault only paused | No (Router relies on Vault) | No (Router relies on Vault) | Strategies keep accruing yield |
+| StrategyManager only paused | No (Vault calls SM) | No | Existing strategy positions accrue normally |
+| All paused | No | No | Emergency-withdraw still callable by Guardian |
+
+### Admin escape hatch
+
+`DEFAULT_ADMIN_ROLE` retains the ability to call `vault.deposit` and `vault.redeem` directly via the `onlyAuthorized` modifier, which permits both the Router and the admin. If the Router is broken or paused indefinitely, an admin can in principle deposit or redeem on behalf of users — though this requires admin signatures and is not a normal-operation path. See the [Router-failure recovery runbook](/security/risks-and-disclosures#router-recovery-runbook) for the full procedure.
+
+## Router-holds-shares implication
+
+Because vault shares are held by the Router (not the user's wallet), a pause on *only* the Router blocks user redemptions even if the Vault would otherwise allow them. There is no on-chain mechanism for users to bypass the Router and redeem their shares directly — the Vault's `onlyAuthorized` keeps direct access restricted to the Router and admin. This is the single biggest dependency to be aware of when evaluating pause exposure.
+
+## Related pages
+
+- [Access control](/security/access-control) — full role matrix.
+- [Risks and disclosures](/security/risks-and-disclosures) — Router-recovery runbook.
+- [StrategyManager](/protocol-architecture/strategy-manager#emergency-exits) — emergency exit details.

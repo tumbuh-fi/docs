@@ -1,0 +1,114 @@
+---
+title: "Risks and disclosures"
+description: "An honest inventory of the risks of using Tumbuh, the mechanisms behind each, and what mitigates them today."
+sidebarTitle: "Risks and disclosures"
+icon: "triangle-exclamation"
+---
+
+# Risks and disclosures
+
+This page lists the known risks of depositing into Tumbuh. Each entry follows the same structure: **Statement** of the risk, **Mechanism** by which loss could occur, **Mitigation** Tumbuh has in place, and **Residual** exposure after the mitigation.
+
+## Audit status
+
+<Warning>
+**Tumbuh V3 is not yet audited.** Until a third-party audit completes, assume higher residual smart-contract risk than a comparable audited protocol. Audit progress will be posted here when available.
+</Warning>
+
+## Smart contract risk
+
+**Statement.** All smart contracts can contain bugs that allow loss of funds. Tumbuh is no exception.
+
+**Mechanism.** A bug in the Vault, Router, StrategyManager, or an adapter could allow incorrect share accounting, double-redemption, or unauthorized fund movement. Bugs in upgrade authorization could allow unauthorized changes to contract logic.
+
+**Mitigation.** Reentrancy guards on every state-changing function, namespaced storage to prevent layout collisions, narrow caller-binding modifiers (`onlyAuthorized`, `onlyVault`, `onlyStrategyManager`, `onlyRouter`), and bounded admin parameters. The contract surface has been kept small and each contract has a single responsibility.
+
+**Residual.** Until a formal audit completes, residual smart-contract risk is unbounded. Smart contract risk can never be eliminated fully, even after audits — users must assess this risk independently.
+
+## External protocol risk
+
+**Statement.** Tumbuh deposits user USDC into Morpho, AutoFinance, Avantis, and other integrated ERC-4626 vaults. Each of these is an independent protocol with its own risks.
+
+**Mechanism.** A failure in any integrated protocol — economic, technical, governance — could cause the deposited funds in that strategy to be lost or frozen. A 100% allocation to one strategy would mean a 100% loss if that strategy fails.
+
+**Mitigation.** Tumbuh diversifies across multiple strategies; the launch allocation is roughly 10% / 10% / 40% / 40% across four vaults. The `getValueOrFallback` mechanism keeps the Vault's `totalAssets()` readable even if one strategy reverts on `convertToAssets`. The Guardian can call `emergencyWithdrawStrategy` to force-exit a misbehaving strategy.
+
+**Residual.** Diversification reduces but does not eliminate external protocol risk. A failure of any one integrated protocol still translates to a proportional loss for Tumbuh holders. See [Integrations](/integrations) for the current strategy set and per-protocol notes.
+
+## Swap slippage risk
+
+**Statement.** Both deposit and withdrawal involve swaps through the 0x AllowanceHolder. The 0x quote can move between submission and execution.
+
+**Mechanism.** A 0x quote is valid for a brief window. If conditions change before the transaction confirms, the actual swap output may be lower than quoted. With no slippage protection, a worst-case quote drift could deliver substantially fewer USDC (on deposit) or fewer IDRX (on withdrawal) than expected.
+
+**Mitigation.** Both Router functions take a `min*Out` parameter. `depositWithSwap` reverts if the resulting vault shares are below `minSharesOut`. `redeemWithSwap` reverts if the IDRX out is below `minIdrxOut`. Wallets and frontends pre-fill these from the live 0x quote, typically with a 0.5–1% buffer.
+
+**Residual.** Up to the slippage tolerance specified, you accept some loss to slippage on every swap. Setting the bound too tight causes the transaction to revert (you pay gas, no deposit happens); setting it too loose accepts more slippage. There is no zero-slippage option.
+
+## Withdrawal slippage isolation
+
+**Statement.** When you withdraw, exit slippage from the external vaults is paid from your proceeds, not shared across all holders.
+
+**Mechanism.** The Vault's `redeem` returns the actual USDC received, not the optimistic estimate. If a strategy redemption pays out 0.3% less than expected, only the share-burner — you — bears that 0.3%. Other holders' share price is unchanged.
+
+**Mitigation.** This is by design, not a bug. It keeps share price stable for non-withdrawing holders. Setting `minIdrxOut` based on a realistic exit-slippage estimate keeps you in control of how much loss you accept.
+
+**Residual.** You should expect slightly less IDRX out than the optimistic `convertToAssets` quote suggests, depending on each strategy's exit conditions. See [Slippage isolation](/fees-and-yield#slippage-isolation) for a worked example.
+
+## Admin-key risk
+
+**Statement.** The protocol has no on-chain timelock. `DEFAULT_ADMIN_ROLE`, `OPERATOR_ROLE`, `GUARDIAN_ROLE`, and `ADMIN_MANAGER` actions take effect immediately.
+
+**Mechanism.** A compromised admin key could upgrade a contract maliciously, redirect the treasury, change the swap percentage, pause indefinitely, or force-exit strategies. A compromised operator key could rebalance toward a malicious strategy or trigger improper reward claims.
+
+**Mitigation.** Roles are split (admin, operator, guardian, admin-manager) so no single key has full authority. Every admin action emits an event, so observers can detect and react. Multisig signers and procedural delays are operational mitigations off-chain.
+
+**Residual.** Substantial. Until an on-chain timelock is added, users must trust that the admin keys are held by a multisig with a delay-by-policy. See [Upgradeability](/security/upgradeability) for the planned timelock work.
+
+## Router-holds-shares dependency
+
+**Statement.** Vault shares are held by the Router on your behalf, not by you directly. If the Router becomes unusable, you cannot redeem without admin coordination.
+
+**Mechanism.** `redeemWithSwap` is the only path for a regular user to exit. If the Router is paused indefinitely, upgraded incorrectly, or otherwise unable to execute `redeemWithSwap`, users cannot move IDRX out through normal channels.
+
+**Mitigation.** `DEFAULT_ADMIN_ROLE` retains the ability to call `vault.redeem` directly via `onlyAuthorized`. If the Router is broken, the admin can in principle redeem on behalf of users (see runbook below). Pause is reversible — `unpause` restores normal operation.
+
+**Residual.** Real. Recovery requires admin signatures and is not an automatic on-chain process.
+
+### Router recovery runbook
+
+If the Router is unable to process redemptions and a timely fix or unpause is not possible:
+
+1. **Identify affected positions.** Read each user's `userVaultShares[user]` and `idrxIdleBalances[user]` from the Router. These mappings are public — anyone can produce the list.
+2. **Admin-driven redemption.** `DEFAULT_ADMIN_ROLE` calls `vault.redeem(shares, receiver=admin, owner=Router)` for each user's share count. The Vault treats the admin as authorized and redeems normally.
+3. **Distribute USDC.** Admin distributes the resulting USDC to affected users — either as USDC or, by separately invoking the SwapContract, swapped back to IDRX off the recovered Router or via a new Router instance.
+4. **Re-establish the Router.** A new Router can be deployed and wired (`vault.setRouter`, `swapContract.setRouter`). The new Router does not inherit the old Router's `userVaultShares` mapping — admin distribution closes positions before any new Router is wired.
+
+This procedure requires admin coordination and is not instantaneous. It is the trust assumption behind the protocol's user-share custody model.
+
+## Paused state risk
+
+**Statement.** While the Vault, Router, or StrategyManager is paused, you cannot deposit or redeem.
+
+**Mechanism.** The pause modifier blocks all user-facing entry points. Vault shares continue to earn yield in the strategies, but you cannot move IDRX in or out until the pause is lifted.
+
+**Mitigation.** Pause is reversible — `GUARDIAN_ROLE` calls `unpause` to restore operation. The Guardian can pause selectively (only the Router, only the Vault, only the StrategyManager).
+
+**Residual.** Timing risk: if you need to exit during a pause, you cannot. Yield continues to accrue regardless.
+
+## tIDRX non-transferability
+
+**Statement.** tIDRX cannot be sent to another wallet.
+
+**Mechanism.** The TIDRX contract reverts on any transfer where both `from` and `to` are non-zero. Only mint (from `0x0`) and burn (to `0x0`) succeed.
+
+**Mitigation.** This is by design. tIDRX is a receipt tied to per-address Router accounting; transferability would decouple the receipt from the position.
+
+**Residual.** You cannot move your position to a different address by transferring tIDRX. To move funds between addresses, you must redeem on the source address and deposit from the destination address — a round trip that incurs swap slippage in both directions.
+
+## Related pages
+
+- [Access control](/security/access-control) — full role matrix.
+- [Pausability and emergency](/security/pausability-emergency) — pause scope and emergency exits.
+- [Upgradeability](/security/upgradeability) — UUPS pattern and the no-timelock disclosure.
+- [Invariants](/security/invariants) — the on-chain enforcement and trust assumptions reference.
