@@ -58,13 +58,6 @@
         ]
       },
       {
-        "group": "Integrations",
-        "pages": [
-          "integrations",
-          "integrations-add-new-protocol"
-        ]
-      },
-      {
         "group": "Developers",
         "pages": [
           "developers/contract-addresses",
