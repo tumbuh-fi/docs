@@ -9,18 +9,28 @@ icon: "code"
 
 This page is the integrator's reference for the Tumbuh contract surface. Every signature here matches the deployed contract source.
 
+The page is split into two parts:
+
+- [**Integrator surface**](#integrator-surface) — functions any external caller can invoke. This is what you build against from a wallet, a smart contract, or a backend.
+- [**Admin and operator surface**](#admin-and-operator-surface) — role-gated and contract-scoped functions, listed for transparency. **External integrators cannot call these.**
+
 <Note>
-This page is hand-maintained today. A future CI job will regenerate the function-signature blocks from NatSpec via `solidity-docgen`. The hand-written **Events and indexing recipes** subsection at the bottom will remain manual.
+This page is hand-maintained today. A future CI job will regenerate the function-signature blocks from NatSpec via `solidity-docgen`. The hand-written **Events and indexing recipes** section will remain manual.
 </Note>
 
 <Warning>
-The Vault's `mint(uint256, address)` and `withdraw(uint256, address, address)` revert with `NotImplemented()`. Use `deposit(assets, receiver)` and `redeem(shares, receiver, owner)` only. Standard ERC-4626 integrations that auto-pick `withdraw` will fail.
+The Vault's `mint(uint256, address)` and `withdraw(uint256, address, address)` revert with `NotImplemented()`. Use `deposit(assets, receiver)` and `redeem(shares, receiver, owner)` only — and note that even those are gated to the Router (see the admin surface). Standard ERC-4626 integrations that auto-pick `withdraw` will fail.
 </Warning>
 
-## TumbuhRouter
+---
+
+## Integrator surface
+
+Functions in this section are callable by any address. They are the entry points an external integrator builds against.
+
+### TumbuhRouter — user entry points
 
 ```solidity
-// User entry points
 function depositWithSwap(
     uint256 idrxAmount,
     address receiver,
@@ -34,146 +44,70 @@ function redeemWithSwap(
     uint256 minIdrxOut,
     bytes calldata swapData
 ) external whenNotPaused nonReentrant returns (uint256 idrxAmount);
+```
 
-// Position views
+### TumbuhRouter — view functions
+
+```solidity
+// Per-user position
 function getUserVaultShares(address user) external view returns (uint256 shares);
 function getIdleBalance(address user) external view returns (uint256 balance);
 
-// Configuration views
+// Configuration
 function vault() external view returns (address);
 function swapContract() external view returns (address);
 function tidrx() external view returns (address);
 function idrxToken() external view returns (address);
 function usdcToken() external view returns (address);
-function swapPercentage() external view returns (uint256);  // bps, 7000–9000
+function swapPercentage() external view returns (uint256);  // bps
 function minDepositAmount() external view returns (uint256);
 ```
 
-## TumbuhVault
+### TumbuhVault — view functions
 
 ```solidity
-// ERC-4626 (with restrictions)
-function deposit(uint256 assets, address receiver) external returns (uint256 shares); // onlyAuthorized
-function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets); // onlyAuthorized
-function mint(uint256, address) external pure returns (uint256);    // reverts NotImplemented
-function withdraw(uint256, address, address) external pure returns (uint256); // reverts NotImplemented
-
 // ERC-4626 view surface
 function totalAssets() external view returns (uint256);
 function convertToAssets(uint256 shares) external view returns (uint256);
 function convertToShares(uint256 assets) external view returns (uint256);
 function previewDeposit(uint256 assets) external view returns (uint256);
 function previewRedeem(uint256 shares) external view returns (uint256);
-function asset() external view returns (address);  // USDC
+function asset() external view returns (address);
 
-// Performance fee
+// Fee model views (the fee model is being redesigned; values are currently zero)
 function getPerformanceFee() external view returns (uint16 feeBps);
 function getHighWaterMark() external view returns (uint256 hwm);
 function pendingPerformanceFee() external view returns (uint256 feeAssets, uint256 feeShares);
-function collectFee() external; // OPERATOR_ROLE
-function setPerformanceFee(uint16 newFeeBps) external; // OPERATOR_ROLE — bounded ≤ 3000
 
-// Configuration views
+// Configuration
 function getStrategyManager() external view returns (address);
 function getTreasury() external view returns (address);
 ```
 
-## StrategyManager
+### StrategyManager — view functions
 
 ```solidity
-// Strategy registry — OPERATOR_ROLE
-function addFarmStrategy(address adapter, address vault, uint16 percentage) external returns (uint256 strategyId);
-function removeFarmStrategy(uint256 strategyId) external;
-function updateFarmStrategy(uint256 strategyId, address newAdapter, address newVault) external;
-function updateStrategyPercentages(uint256[] calldata strategyIds, uint16[] calldata percentages) external;
-function rebalance() external;
-function reactivateStrategy(uint256 strategyId) external; // reactivates at 0%
-
-// Reward claiming — OPERATOR_ROLE
-function claimAndCompound(
-    uint256 strategyId,
-    address urd,
-    address rewardToken,
-    uint256 claimableAmount,
-    bytes32[] calldata proof,
-    bytes calldata swapData,
-    uint256 minUsdcOut
-) external;
-
-// Emergency — GUARDIAN_ROLE
-function emergencyWithdrawStrategy(uint256 strategyId) external returns (uint256 lostDeposits);
-
-// Vault-only
-function deployFunds(uint256 amount) external;     // onlyVault
-function withdrawFunds(uint256 amount) external;   // onlyVault
-
-// Views
 function getFarmStrategy(uint256 strategyId) external view returns (StrategyInfo memory);
 function getAllFarmStrategiesInfo() external view returns (StrategyInfo[] memory);
 function getTotalValueLocked() external view returns (uint256 tvl);
 function getFarmStrategyCount() external view returns (uint256 count);
 ```
 
-## SwapContract
-
-```solidity
-function fillQuote(
-    address sellToken,
-    address buyToken,
-    uint256 amount,
-    address swapTarget,    // must equal allowanceHolder
-    bytes calldata swapCallData
-) external nonReentrant returns (uint256 boughtAmount); // onlyAuthorized (Router or StrategyManager)
-
-function setRouter(address _router) external;             // onlyOwner
-function setStrategyManager(address _strategyManager) external; // onlyOwner
-```
-
-## TIDRX
+### TIDRX — view functions
 
 ```solidity
 function decimals() external view returns (uint8);   // 2
-function mint(address to, uint256 amount) external;  // onlyRouter (immutable)
-function burn(address from, uint256 amount) external; // onlyRouter (immutable)
-function router() external view returns (address);    // immutable
+function router() external view returns (address);   // immutable
 
-// Transfers between non-zero addresses revert (soulbound)
+// Standard ERC-20 views (balanceOf, totalSupply, allowance) also available.
+// Note: transfers between non-zero addresses revert (soulbound).
 ```
 
-## Adapter interface
-
-All adapters implement `IFarmProtocolHandler`. Methods are gated by `onlyStrategyManager`.
-
-```solidity
-interface IFarmProtocolHandler {
-    function handleDeposit(address vault, address token, uint256 amount) external returns (uint256 shares);
-    function handleWithdraw(address vault, address token, uint256 shares) external returns (uint256 assets);
-    function convertToAssets(address vault, uint256 shares) external view returns (uint256);
-    function handleClaimExtraReward(
-        address urd,
-        address rewardToken,
-        uint256 claimableAmount,
-        bytes32[] calldata proof
-    ) external returns (uint256 claimedAmount);
-}
-```
-
-`BaseAdapter` provides a default `handleClaimExtraReward` that reverts with `NotImplemented`. `MorphoStrategy` overrides it to call Morpho's URD.
-
-## Role constants
-
-| Role | Hash | Defined in |
-|---|---|---|
-| `DEFAULT_ADMIN_ROLE` | `0x0000000000000000000000000000000000000000000000000000000000000000` | OpenZeppelin `AccessControl` |
-| `OPERATOR_ROLE` | `keccak256("OPERATOR_ROLE")` | TumbuhVault, StrategyManager |
-| `GUARDIAN_ROLE` | `keccak256("GUARDIAN_ROLE")` | TumbuhVault, StrategyManager, TumbuhRouter |
-| `ADMIN_MANAGER` | `keccak256("ADMIN_MANAGER")` | TumbuhRouter only |
-
-## Events and indexing recipes
+### Events and indexing recipes
 
 The following events are the reliable hooks for off-chain indexing. All are emitted by Tumbuh contracts (not the external strategies).
 
-### Position lifecycle
+#### Position lifecycle
 
 ```solidity
 // Emitted by TumbuhRouter
@@ -191,7 +125,7 @@ event RedeemWithSwap(
 
 **Indexing recipe (user positions).** Subscribe to both events filtered by `receiver` to track per-user net deposits and withdrawals. Augment with on-chain reads of `router.getUserVaultShares(user)` and `vault.convertToAssets(...)` for current value.
 
-### Strategy state
+#### Strategy state
 
 ```solidity
 // Emitted by StrategyManager
@@ -208,7 +142,7 @@ event StrategyReactivated(uint256 indexed strategyId);
 
 **Indexing recipe (strategy registry).** Snapshot `getAllFarmStrategiesInfo()` at indexer start, then subscribe to `FarmStrategyAdded`, `FarmStrategyRemoved`, `UpdateStrategy`, and `StrategyReactivated` to keep the local registry in sync.
 
-### Fees
+#### Fees
 
 ```solidity
 // Emitted by TumbuhVault
@@ -218,7 +152,7 @@ event PerformanceFeeUpdated(/* ... */);
 
 **Indexing recipe (fee history).** Subscribe to `PerformanceFeeCollected` to compute realized treasury accruals over time.
 
-### Configuration changes
+#### Configuration changes
 
 ```solidity
 // Emitted across contracts
@@ -234,9 +168,151 @@ event MinDepositAmountUpdated(/* ... */);
 
 These are admin-config changes. Indexers tracking governance posture should subscribe to all of them on the relevant contracts.
 
+---
+
+## Admin and operator surface
+
+<Warning>
+**External integrators cannot call any function in this section.** They are gated to specific contracts (e.g. `onlyVault`, `onlyRouter`) or specific roles (`OPERATOR_ROLE`, `GUARDIAN_ROLE`, `DEFAULT_ADMIN_ROLE`, `ADMIN_MANAGER`). The functions are listed here for transparency — so auditors, researchers, and institutional partners can see exactly what privileged callers can do.
+</Warning>
+
+### TumbuhRouter — admin
+
+```solidity
+// ADMIN_MANAGER
+function setSwapPercentage(uint256 newPercentage) external; // bounded 7000–9000 bps
+function setMinDepositAmount(uint256 newMinAmount) external;
+
+// DEFAULT_ADMIN_ROLE
+function setVault(address newVault) external;
+function setSwapContract(address newSwapContract) external;
+function setTidrx(address newTidrx) external; // one-time only
+
+// GUARDIAN_ROLE
+function pause() external;
+function unpause() external;
+```
+
+### TumbuhVault — admin and operator
+
+```solidity
+// ERC-4626 — onlyAuthorized (Router or DEFAULT_ADMIN_ROLE)
+function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+function mint(uint256, address) external pure returns (uint256);    // reverts NotImplemented
+function withdraw(uint256, address, address) external pure returns (uint256); // reverts NotImplemented
+
+// OPERATOR_ROLE
+function setPerformanceFee(uint16 newFeeBps) external; // bounded ≤ 3000
+function collectFee() external;
+
+// DEFAULT_ADMIN_ROLE
+function setStrategyManager(address newStrategyManager) external;
+function setRouter(address newRouter) external;
+function setTreasury(address newTreasury) external;
+
+// GUARDIAN_ROLE
+function pause() external;
+function unpause() external;
+```
+
+### StrategyManager — admin and operator
+
+```solidity
+// OPERATOR_ROLE — strategy registry
+function addFarmStrategy(address adapter, address vault, uint16 percentage) external returns (uint256 strategyId);
+function removeFarmStrategy(uint256 strategyId) external;
+function updateFarmStrategy(uint256 strategyId, address newAdapter, address newVault) external;
+function updateStrategyPercentages(uint256[] calldata strategyIds, uint16[] calldata percentages) external;
+function rebalance() external;
+function reactivateStrategy(uint256 strategyId) external; // reactivates at 0%
+
+// OPERATOR_ROLE — reward claiming
+function claimAndCompound(
+    uint256 strategyId,
+    address urd,
+    address rewardToken,
+    uint256 claimableAmount,
+    bytes32[] calldata proof,
+    bytes calldata swapData,
+    uint256 minUsdcOut
+) external;
+
+// GUARDIAN_ROLE — emergency
+function emergencyWithdrawStrategy(uint256 strategyId) external returns (uint256 lostDeposits);
+
+// onlyVault — capital movement
+function deployFunds(uint256 amount) external;
+function withdrawFunds(uint256 amount) external;
+
+// DEFAULT_ADMIN_ROLE
+function setVault(address newVault) external;
+function setSwapContract(address newSwapContract) external;
+
+// GUARDIAN_ROLE
+function pause() external;
+function unpause() external;
+```
+
+### SwapContract — admin and contract-scoped
+
+```solidity
+// onlyAuthorized — Router or StrategyManager only
+function fillQuote(
+    address sellToken,
+    address buyToken,
+    uint256 amount,
+    address swapTarget,    // must equal the configured aggregator
+    bytes calldata swapCallData
+) external nonReentrant returns (uint256 boughtAmount);
+
+// onlyOwner
+function setRouter(address _router) external;
+function setStrategyManager(address _strategyManager) external;
+```
+
+### TIDRX — contract-scoped
+
+```solidity
+// onlyRouter (immutable)
+function mint(address to, uint256 amount) external;
+function burn(address from, uint256 amount) external;
+
+// Transfers between non-zero addresses revert (soulbound).
+```
+
+### Adapter interface
+
+All adapters implement `IFarmProtocolHandler`. Methods are gated by `onlyStrategyManager` — no other caller can invoke them.
+
+```solidity
+interface IFarmProtocolHandler {
+    function handleDeposit(address vault, address token, uint256 amount) external returns (uint256 shares);
+    function handleWithdraw(address vault, address token, uint256 shares) external returns (uint256 assets);
+    function convertToAssets(address vault, uint256 shares) external view returns (uint256);
+    function handleClaimExtraReward(
+        address urd,
+        address rewardToken,
+        uint256 claimableAmount,
+        bytes32[] calldata proof
+    ) external returns (uint256 claimedAmount);
+}
+```
+
+`BaseAdapter` provides a default `handleClaimExtraReward` that reverts with `NotImplemented`. `MorphoStrategy` overrides it to call Morpho's URD.
+
+### Role constants
+
+| Role | Hash | Defined in |
+|---|---|---|
+| `DEFAULT_ADMIN_ROLE` | `0x0000000000000000000000000000000000000000000000000000000000000000` | OpenZeppelin `AccessControl` |
+| `OPERATOR_ROLE` | `keccak256("OPERATOR_ROLE")` | TumbuhVault, StrategyManager |
+| `GUARDIAN_ROLE` | `keccak256("GUARDIAN_ROLE")` | TumbuhVault, StrategyManager, TumbuhRouter |
+| `ADMIN_MANAGER` | `keccak256("ADMIN_MANAGER")` | TumbuhRouter only |
+
 ## Related pages
 
-- [Integration guide](/developers/integration-guide) — code examples for calling these interfaces.
+- [Integration guide](/developers/integration-guide) — code examples for calling the integrator surface.
 - [Contract addresses](/developers/contract-addresses) — where to point your client.
-- [Access control](/security/access-control) — what each role-gated function requires.
+- [Access control](/security/access-control) — what each role can do, on which contract.
 - [Invariants](/security/invariants) — bounded values and revert conditions to expect.
