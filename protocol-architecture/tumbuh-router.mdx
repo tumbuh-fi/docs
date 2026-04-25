@@ -7,17 +7,17 @@ icon: "route"
 
 # TumbuhRouter
 
-The TumbuhRouter is the entry point a regular user interacts with. It accepts the supported stablecoin (currently IDRX), splits each deposit between a swap-to-vault-asset path and an idle reserve, places the swapped portion into [TumbuhVault](/protocol-architecture/tumbuh-vault) on your behalf, and issues your receipt token (currently tIDRX). On withdrawal, it does the inverse.
+The TumbuhRouter is the entry point a regular user interacts with. It accepts the deposit asset, splits each deposit between a swap-to-vault-asset path and an idle reserve, places the swapped portion into [TumbuhVault](/protocol-architecture/tumbuh-vault) on your behalf, and issues your receipt token. On withdrawal, it does the inverse.
 
-The router is the **extensibility point for additional supported stablecoins**. Today it handles IDRX; the contract surface is shaped so a future router (or this router upgraded) can accept a different supported stablecoin without changes to the underlying vault.
+The router is the **extensibility point for additional deposit assets**. The contract surface is shaped so a future router (or this router upgraded) can accept a different deposit asset without changes to the underlying vault.
 
 ## What the router does
 
-- Pulls your stablecoin from your wallet on deposit.
-- Swaps the configured portion to the vault's underlying asset; holds the rest as your per-user idle balance.
+- Pulls your deposit asset from your wallet on deposit.
+- Swaps the configured portion to the vault asset; holds the rest as your per-user idle balance.
 - Places the swapped portion into the vault on your behalf, recording the resulting vault position against your address.
-- Issues your receipt token 1:1 with the gross stablecoin amount you deposited.
-- Reverses the entire flow on withdrawal: burns your receipt, redeems your share of the vault, swaps the proceeds back to your stablecoin, and returns the result to your wallet alongside your idle balance.
+- Issues your receipt token 1:1 with the gross amount you deposited.
+- Reverses the entire flow on withdrawal: burns your receipt, redeems your share of the vault, swaps the proceeds back to your deposit asset, and returns the result to your wallet alongside your idle balance.
 
 ## What the router does not do
 

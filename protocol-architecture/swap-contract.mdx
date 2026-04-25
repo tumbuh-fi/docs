@@ -7,7 +7,7 @@ icon: "right-left"
 
 # SwapContract
 
-The SwapContract is the thin swap layer that connects the protocol to external markets. The router uses it for stablecoin↔vault-asset swaps; the strategy allocator uses it to convert reward tokens into the vault asset. No other contract can call it.
+The SwapContract is the thin swap layer that connects the protocol to external markets. The router uses it for deposit-asset ↔ vault-asset swaps; the strategy allocator uses it to convert reward tokens into the vault asset. No other contract can call it.
 
 The contract is deliberately thin. It does not choose what to swap, when to swap, or hold funds between calls. It validates the swap target, executes the call, and returns the bought amount.
 

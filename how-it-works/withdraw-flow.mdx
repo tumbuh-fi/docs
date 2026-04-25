@@ -22,16 +22,16 @@ This page walks through what happens when you withdraw on [app.tumbuh.fi](https:
   </Step>
 
   <Step title="Choose how much to withdraw">
-    You can withdraw all of your position or any partial amount, denominated in your receipt token (currently tIDRX).
+    You can withdraw all of your position or any partial amount, denominated in your receipt token.
 
     {/* TODO: replace with app screenshot */}
     <Frame caption="Enter the withdrawal amount">
-      ![Withdraw amount input with estimated stablecoin output](/images/checks-passed.png)
+      ![Withdraw amount input with estimated deposit-asset output](/images/checks-passed.png)
     </Frame>
   </Step>
 
   <Step title="Review the estimate">
-    The app shows expected stablecoin output, the swap rate at execution, and a slippage default.
+    The app shows the expected deposit-asset output, the swap rate at execution, and a slippage default.
 
     {/* TODO: replace with app screenshot */}
     <Frame caption="Review your withdrawal estimate">
@@ -40,7 +40,7 @@ This page walks through what happens when you withdraw on [app.tumbuh.fi](https:
   </Step>
 
   <Step title="Confirm the withdrawal transaction">
-    One signature, one transaction. The protocol burns the receipt, redeems your share of the vault, swaps the proceeds back to your stablecoin, and sends them to your wallet.
+    One signature, one transaction. The protocol burns the receipt, redeems your share of the vault, swaps the proceeds back to your deposit asset, and sends them to your wallet.
 
     {/* TODO: replace with app screenshot */}
     <Frame caption="Confirm the withdrawal in your wallet">
@@ -48,12 +48,12 @@ This page walks through what happens when you withdraw on [app.tumbuh.fi](https:
     </Frame>
   </Step>
 
-  <Step title="Receive your stablecoin">
-    Once the transaction confirms, the stablecoin appears in your wallet alongside any idle balance the protocol held for you.
+  <Step title="Receive your deposit asset">
+    Once the transaction confirms, the asset appears in your wallet alongside any idle balance the protocol held for you.
 
     {/* TODO: replace with app screenshot */}
-    <Frame caption="Stablecoin returned to your wallet">
-      ![Wallet receiving stablecoin after a successful withdrawal](/images/checks-passed.png)
+    <Frame caption="Deposit asset returned to your wallet">
+      ![Wallet receiving the deposit asset after a successful withdrawal](/images/checks-passed.png)
     </Frame>
   </Step>
 </Steps>
@@ -66,18 +66,18 @@ A partial withdrawal redeems a proportional slice of everything: a slice of your
 
 Two sources contribute to the difference between the estimate and the actual amount received:
 
-- **Swap rate movement.** The vault asset → stablecoin swap executes at the live market rate. The rate at execution may differ slightly from the rate when you reviewed the estimate.
+- **Swap rate movement.** The vault-asset → deposit-asset swap executes at the live market rate. The rate at execution may differ slightly from the rate when you reviewed the estimate.
 - **Yield-protocol exit cost.** When the vault redeems part of its position, an integrated protocol may pay out slightly less than its quoted value because of withdrawal fees, looped-position unwinding, or rounding.
 
 Tumbuh isolates the second cost to the user who triggered it: only your proceeds are reduced, not other holders' position value. This keeps the system fair — the user who triggered the exit pays the cost of that exit, and other users are unaffected.
 
 ## Worked example
 
-> *Example using IDRX as the entry stablecoin. Other supported stablecoins follow the same flow.*
+> *Example using IDRX as the deposit asset. Other supported deposit assets follow the same flow.*
 >
 > *Exchange rates fluctuate. Examples on this page use a reference rate of approximately 17,252.70 IDR/USD (April 2026); your actual amounts vary with market conditions.*
 
-A user holding ~50% of the vault initiates a full withdrawal on app.tumbuh.fi. Their slice estimates approximately **1,000 USDC** of vault assets. With ~0.3% exit cost, the actual amount received is **~997 USDC**. That converts to roughly **17.2 million IDRX** at the reference rate, plus the user's idle stablecoin balance. Other holders' position value is unchanged.
+A user holding ~50% of the vault initiates a full withdrawal on app.tumbuh.fi. Their slice estimates approximately **1,000 USDC** of vault assets. With ~0.3% exit cost, the actual amount received is **~997 USDC**. That converts to roughly **17.2 million IDRX** at the reference rate, plus the user's idle balance. Other holders' position value is unchanged.
 
 ## Slippage protection
 

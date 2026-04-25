@@ -9,9 +9,9 @@ icon: "circle-play"
 
 Tumbuh is a three-step loop:
 
-1. **Deposit.** You send your stablecoin. The protocol swaps most of it to the vault's underlying asset, places the result into the vault, and issues your receipt token.
+1. **Deposit.** You send your asset. The protocol swaps most of it to the vault asset, places the result into the vault, and issues your receipt token.
 2. **Earn.** The vault spreads its capital across diversified DeFi yield protocols. Yield raises the vault's share value over time.
-3. **Withdraw.** You burn your receipt. The protocol redeems your share of the vault, swaps the proceeds back to your stablecoin, and sends them to you alongside the idle balance the protocol kept aside on your behalf.
+3. **Withdraw.** You burn your receipt. The protocol redeems your share of the vault, swaps the proceeds back to your asset, and sends them to you alongside the idle balance the protocol kept aside on your behalf.
 
 ## The full flow
 
@@ -30,14 +30,14 @@ sequenceDiagram
     Vault->>SM: Allocate across strategies
     SM->>External: Deposit into yield protocols
     Router-->>User: Mint receipt token (1:1 with deposit)
-    Note over Router: Idle stablecoin kept per user
+    Note over Router: Idle deposit asset kept per user
 
     User->>Router: Withdraw
     Router->>Vault: Redeem from vault
     Vault->>SM: Pull from strategies
     SM->>External: Exit yield protocols
-    Router->>Swap: Swap back to your stablecoin
-    Router-->>User: Stablecoin returned (swap output + idle)
+    Router->>Swap: Swap back to your deposit asset
+    Router-->>User: Deposit asset returned (swap output + idle)
 ```
 
 ## Who holds what
@@ -53,7 +53,7 @@ flowchart TB
 
     subgraph RouterHoldings["Protocol-held (per user)"]
         Shares["Vault position (proportional share)"]
-        IdleIDRX["Idle stablecoin (unswapped portion)"]
+        IdleIDRX["Idle deposit asset (unswapped portion)"]
     end
 
     subgraph VaultHoldings["Vault holdings"]
@@ -66,19 +66,19 @@ flowchart TB
 ```
 
 <Info>
-The web app at [app.tumbuh.fi](https://app.tumbuh.fi) reads your full position automatically — including the share of vault assets attributed to your address and any idle stablecoin held on your behalf. You do not need to read the on-chain records yourself.
+The web app at [app.tumbuh.fi](https://app.tumbuh.fi) reads your full position automatically — including the share of vault assets attributed to your address and any idle deposit asset held on your behalf. You do not need to read the on-chain records yourself.
 </Info>
 
 ## A worked example
 
-> *Example using IDRX as the entry stablecoin. Other supported stablecoins follow the same flow.*
+> *Example using IDRX as the deposit asset. Other supported deposit assets follow the same flow.*
 >
 > *Exchange rates fluctuate. Examples on this page use a reference rate of approximately 17,252.70 IDR/USD (April 2026); your actual amounts vary with market conditions.*
 
 A short version (full numerical walkthrough lives on the [deposit flow](/how-it-works/deposit-flow) page):
 
 - You deposit **100,000 IDRX**.
-- With a swap portion of about 80%, the protocol swaps **80,000 IDRX** to the vault's underlying asset (currently USDC) and keeps **20,000 IDRX** idle on your behalf.
+- With a swap portion of about 80%, the protocol swaps **80,000 IDRX** to the vault asset and keeps **20,000 IDRX** idle on your behalf.
 - At a market rate of roughly 17,252.70 IDR/USD, the swap returns approximately **4.64 USDC** before slippage.
 - The vault asset enters the vault and is spread across the active yield protocols.
 - Your wallet now holds **100,000 tIDRX**. Your full position is the vault share held on your behalf plus the 20,000 IDRX idle balance.

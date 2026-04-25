@@ -12,21 +12,21 @@ Quick answers to the questions that come up most often. For long-form explanatio
 <AccordionGroup>
 
 <Accordion title="What does Tumbuh do?" icon="leaf">
-Tumbuh is a yield aggregation vault on Base. You deposit a supported stablecoin (currently IDRX), the protocol routes it through an automatic swap to the vault's underlying asset (currently USDC) and across multiple DeFi yield protocols, and pays the yield back as a steadily rising share value. When you withdraw, you receive your stablecoin equal to your proportional share of the vault — typically more than you deposited if yield has accrued.
+Tumbuh is a yield aggregation vault on Base. You deposit a supported asset, the protocol routes it through an automatic swap to the vault asset and across multiple DeFi yield protocols, and pays the yield back as a steadily rising share value. When you withdraw, you receive your asset equal to your proportional share of the vault — typically more than you deposited if yield has accrued.
 
 See [How it works](/how-it-works/overview) for the full loop.
 </Accordion>
 
 <Accordion title="Do I need USDC to deposit?" icon="coins">
-No. You deposit your stablecoin (currently IDRX). The protocol automatically swaps a portion to the vault's underlying asset (currently USDC); you never have to hold USDC directly.
+No. You deposit your asset; the protocol automatically swaps a portion to the vault asset. You never have to hold the vault asset directly.
 
-See [Tokens](/tokens) for how the entry stablecoin, the vault asset, and the receipt token relate.
+See [Tokens](/tokens) for how the deposit asset, the vault asset, and the receipt token relate.
 </Accordion>
 
 <Accordion title="Why do I receive a receipt token instead of vault shares?" icon="receipt">
-The receipt token (currently tIDRX) is your **receipt** — proof that you deposited a specific amount of stablecoin. The actual yield-bearing position is held by the protocol on your behalf and tracked under your address.
+The receipt token is your **receipt** — proof that you deposited a specific amount of your asset. The actual yield-bearing position is held by the protocol on your behalf and tracked under your address.
 
-This indirection lets you think in your stablecoin terms even though the vault accounts in a different asset. It also lets the protocol add new entry stablecoins in the future without changes to the vault.
+This indirection lets you think in your deposit asset terms even though the vault accounts in a different asset. It also lets the protocol add new deposit assets in the future without changes to the vault.
 
 See [Tokens → tIDRX](/tokens#tidrx) for the full explanation.
 </Accordion>
@@ -40,7 +40,7 @@ To move funds between addresses, withdraw on the source address and deposit from
 <Accordion title="Where does my yield come from?" icon="trending-up">
 The vault deploys capital across a diversified set of DeFi yield protocols. Each one earns yield on its own (lending, looped strategies, market making, or other mechanics).
 
-Tumbuh aggregates the result into a single rising share value. **Your receipt-token balance does not rise as yield accrues** — yield lives in the vault, and you see it at withdrawal when your receipt burns for more stablecoin than you deposited.
+Tumbuh aggregates the result into a single rising share value. **Your receipt-token balance does not rise as yield accrues** — yield lives in the vault, and you see it at withdrawal when your receipt burns for more than you deposited.
 
 See [Yield generation](/how-it-works/yield-generation).
 </Accordion>
@@ -72,22 +72,22 @@ See [External protocol risk](/security/risks-and-disclosures#external-protocol-r
 </Accordion>
 
 <Accordion title="Can I withdraw any time?" icon="arrow-up-from-line">
-Yes, subject to gas and slippage. You initiate withdrawal on [app.tumbuh.fi](https://app.tumbuh.fi); the stablecoin returns to your wallet in the same transaction. There is no lockup, no withdrawal queue, and no minimum hold period.
+Yes, subject to gas and slippage. You initiate withdrawal on [app.tumbuh.fi](https://app.tumbuh.fi); the asset returns to your wallet in the same transaction. There is no lockup, no withdrawal queue, and no minimum hold period.
 
 The exception is when the protocol is paused — see [What if the entry layer stops working?](#what-if-the-entry-layer-stops-working) below.
 
 See [Withdraw flow](/how-it-works/withdraw-flow) for the full sequence.
 </Accordion>
 
-<Accordion title="Why did I get slightly less stablecoin back than I deposited?" icon="arrow-down">
+<Accordion title="Why did I get slightly less back than I deposited?" icon="arrow-down">
 Two sources contribute to the difference:
 
-- **Swap rate movement.** Both deposit and withdraw involve swaps between your stablecoin and the vault asset. The market rate at execution may differ slightly from the rate when you reviewed the estimate.
+- **Swap rate movement.** Both deposit and withdraw involve swaps between the deposit asset and the vault asset. The market rate at execution may differ slightly from the rate when you reviewed the estimate.
 - **Yield-protocol exit cost.** When the vault redeems your portion of the yield-protocol positions, an integrated protocol may pay out slightly less than its quoted value because of withdrawal fees, looped-position unwinding, or rounding.
 
 The exit cost is **isolated to you** — it does not reduce share value for other holders. This keeps the system fair: the user who triggered the strategy exit pays the cost of that exit.
 
-If yield has accrued long enough to outweigh both, you receive more stablecoin than you deposited. See [Why your output may differ slightly from the estimate](/how-it-works/withdraw-flow#why-your-output-may-differ-slightly-from-the-estimate).
+If yield has accrued long enough to outweigh both, you receive more than you deposited. See [Why your output may differ slightly from the estimate](/how-it-works/withdraw-flow#why-your-output-may-differ-slightly-from-the-estimate).
 </Accordion>
 
 <Accordion title="What network is it on?" icon="network-wired">
@@ -113,9 +113,9 @@ The procedure is documented in the [Router recovery runbook](/security/risks-and
 </Accordion>
 
 <Accordion title="Can Tumbuh support other input tokens in the future?" icon="arrow-right-arrow-left">
-Yes — the protocol's entry layer is the extensibility point for additional supported stablecoins. Today the entry layer accepts IDRX. A future entry layer (or this one upgraded) could accept additional supported stablecoins without changes to the underlying vault, because the vault is denominated in the vault asset and the entry layer does the input-asset conversion.
+Yes — the protocol's entry layer is the extensibility point for additional deposit assets. A future entry layer (or this one upgraded) could accept additional deposit assets without changes to the underlying vault, because the vault is denominated in the vault asset and the entry layer does the input-asset conversion.
 
-Whether and when to add another input asset is a protocol decision, not a contract limitation.
+Whether and when to add another deposit asset is a protocol decision, not a contract limitation.
 </Accordion>
 
 </AccordionGroup>
@@ -125,7 +125,7 @@ Whether and when to add another input asset is a protocol decision, not a contra
 If your question is not answered here, the longer pages are organized by topic:
 
 - [How it works](/how-it-works/overview) — what happens when you deposit, earn, and withdraw.
-- [Tokens](/tokens) — the entry stablecoin, the vault asset, and the receipt token explained.
+- [Tokens](/tokens) — the deposit asset, the vault asset, and the receipt token explained.
 - [Yield generation](/how-it-works/yield-generation) — how share value rises and the upcoming fee model.
 - [Security](/security/access-control) — roles, pause scope, upgrades, invariants, and known risks.
 - [Developers](/developers/integration-guide) — for integrators building on Tumbuh.

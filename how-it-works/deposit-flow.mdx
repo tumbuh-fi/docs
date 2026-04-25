@@ -30,12 +30,12 @@ This page walks through what happens when you deposit on [app.tumbuh.fi](https:/
     </Frame>
   </Step>
 
-  <Step title="Approve the protocol (one-time per stablecoin)">
+  <Step title="Approve the protocol (one-time per asset)">
     Your wallet asks you to sign an approval that lets the protocol pull the deposit amount. This is a standard Web3 step.
 
     {/* TODO: replace with app screenshot */}
-    <Frame caption="Wallet approval prompt for the entry stablecoin">
-      ![Wallet approval prompt for the entry stablecoin](/images/checks-passed.png)
+    <Frame caption="Wallet approval prompt for the deposit asset">
+      ![Wallet approval prompt for the deposit asset](/images/checks-passed.png)
     </Frame>
   </Step>
 
@@ -49,7 +49,7 @@ This page walks through what happens when you deposit on [app.tumbuh.fi](https:/
   </Step>
 
   <Step title="Receive your receipt token">
-    The app and your wallet both show your receipt-token balance (currently tIDRX), which represents your deposit.
+    The app and your wallet both show your receipt-token balance, which represents your deposit.
 
     {/* TODO: replace with app screenshot */}
     <Frame caption="Position visible on the dashboard after a successful deposit">
@@ -62,13 +62,13 @@ This page walks through what happens when you deposit on [app.tumbuh.fi](https:/
 
 When you confirm the deposit, the protocol does three things in a single transaction:
 
-1. **Swap the larger portion to the vault asset.** A configured fraction of your deposit (currently around 80%) is swapped to the vault's underlying asset (currently USDC) through a market-best-execution route. The remainder is held as your idle balance — to make your eventual withdrawal cheaper.
+1. **Swap the larger portion to the vault asset.** A configured fraction of your deposit (currently around 80%) is swapped to the vault asset through a market-best-execution route. The remainder is held as your idle balance — to make your eventual withdrawal cheaper.
 2. **Place the swapped portion into the vault.** The vault routes it into a diversified set of yield protocols. Your portion is recorded against your address.
-3. **Issue the receipt token.** You receive a non-transferable receipt token (currently tIDRX), 1:1 with the gross stablecoin amount you deposited. The receipt is your proof of deposit; the actual yield-bearing position is the vault's record of your share.
+3. **Issue the receipt token.** You receive a non-transferable receipt token, 1:1 with the gross amount you deposited. The receipt is your proof of deposit; the actual yield-bearing position is the vault's record of your share.
 
 ## Worked example
 
-> *Example using IDRX as the entry stablecoin. Other supported stablecoins follow the same flow.*
+> *Example using IDRX as the deposit asset. Other supported deposit assets follow the same flow.*
 >
 > *Exchange rates fluctuate. Examples on this page use a reference rate of approximately 17,252.70 IDR/USD (April 2026); your actual amounts vary with market conditions.*
 
@@ -95,7 +95,7 @@ Tighter bounds increase the chance of a reverted transaction; looser bounds acce
 
 - **Stale quote.** Quotes have a short expiration window. The web app fetches a fresh quote when you press confirm; if you wait too long after that, refresh and try again.
 - **Wrong network.** Make sure your wallet is on the network where Tumbuh is deployed (currently Base mainnet).
-- **Insufficient stablecoin balance.** Re-check your balance before signing — the transaction will revert if you do not have enough to cover the deposit.
+- **Insufficient deposit-asset balance.** Re-check your balance before signing — the transaction will revert if you do not have enough to cover the deposit.
 - **Paused state.** In the rare case the protocol is paused for safety reasons, deposits are temporarily blocked. Pause is reversible; try again when normal operation resumes.
 
 ## Related pages

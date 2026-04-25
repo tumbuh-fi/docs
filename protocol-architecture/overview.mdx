@@ -35,7 +35,7 @@ flowchart TB
         P4[Yield protocol 4]
     end
 
-    User -->|Stablecoin| Router
+    User -->|Deposit asset| Router
     Router -->|deposit / redeem| Vault
     Router -->|swap| Swap
     Router -->|mint / burn receipt| TIDRX
@@ -53,16 +53,16 @@ flowchart TB
 
 | Contract | Owns | Does not own |
 |---|---|---|
-| **TumbuhRouter** | The user-facing entry layer; per-user position accounting; receipt-token mint and burn; stablecoin↔vault-asset swaps for deposits and withdrawals | Vault-asset accounting; strategy allocation; fee collection |
+| **TumbuhRouter** | The user-facing entry layer; per-user position accounting; receipt-token mint and burn; deposit-asset ↔ vault-asset swaps for deposits and withdrawals | Vault-asset accounting; strategy allocation; fee collection |
 | **TumbuhVault** | The vault's value accounting; idle vault asset; performance-fee mints (when the new model is live); the all-time-high watermark | Stablecoins other than the vault asset; swap execution; per-user position tracking; strategy logic |
 | **StrategyManager** | The strategy registry; allocation across active strategies; rebalancing; reward compounding; emergency exits | Vault-asset custody beyond transient pulls; performance fee; per-user positions |
 | **SwapContract** | Routing swaps through an external aggregator, gated to the router and the strategy allocator only | Choosing what to swap, when to swap |
 | **Adapters** | Bridging into one external yield protocol per adapter; optional reward claiming | Allocation, scheduling, multi-protocol aggregation |
-| **TIDRX** | A soulbound 1:1 receipt for stablecoin deposits | Yield accrual; vault-position tracking |
+| **TIDRX** | A soulbound 1:1 receipt for deposits | Yield accrual; vault-position tracking |
 
 ## How the contracts connect
 
-- The router is the only contract a regular user interacts with. It pulls stablecoin from the user, drives the swap, places the result into the vault, and issues the receipt token.
+- The router is the only contract a regular user interacts with. It pulls the deposit asset from the user, drives the swap, places the result into the vault, and issues the receipt token.
 - The vault is the only contract that can move capital into and out of the strategy allocator.
 - The strategy allocator is the only contract that can move capital into and out of yield-protocol adapters.
 - The swap layer is callable only by the router and the strategy allocator — no general-purpose access.
