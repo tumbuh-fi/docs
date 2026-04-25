@@ -1,82 +1,59 @@
 ---
 title: "Yield generation"
-description: "How Tumbuh earns yield, why your tIDRX balance does not change, and what compounding looks like."
+description: "How Tumbuh earns yield, why your receipt-token balance does not change, and what compounding looks like."
 sidebarTitle: "Yield generation"
 icon: "trending-up"
 ---
 
 # Yield generation
 
-Tumbuh earns yield by deploying USDC across multiple ERC-4626 yield protocols. The earnings flow back to depositors through a single mechanism: the Vault's share price rises over time. There are no airdrops, no claim transactions, and no rebasing balances.
+Tumbuh earns yield by spreading the vault's assets across multiple DeFi yield protocols. The earnings flow back to depositors through a single mechanism: the vault's value rises over time. There are no airdrops, no claim transactions, and no rebasing balances.
 
-## Share price
+## Share value rises over time
 
-The Vault is ERC-4626. Its share price is:
+Yield raises the vault's value. Because the number of vault shares is fixed (outside the rare fee mint), each share grows in value as the integrated protocols pay yield back to the vault.
 
-```
-share price = totalAssets() / totalSupply()
-```
-
-When yield accrues, `totalAssets()` rises while `totalSupply()` is unchanged outside of fee mints, so the share price rises. The same number of shares now represents more USDC.
-
-| Time | `totalAssets()` | `totalSupply()` | Share price |
+| Time | Vault value | Shares | Value per share (USDC) |
 |---|---|---|---|
-| Day 0 | 100.00 USDC | 100 shares | 1.0000 USDC/share |
-| Day 30 | 100.42 USDC | 100 shares | 1.0042 USDC/share |
-| Day 90 | 101.27 USDC | 100 shares | 1.0127 USDC/share |
-| Day 365 | 105.15 USDC | 100 shares | 1.0515 USDC/share |
+| Day 0 | 100.00 USDC | 100 | 1.0000 |
+| Day 30 | 100.42 USDC | 100 | 1.0042 |
+| Day 90 | 101.27 USDC | 100 | 1.0127 |
+| Day 365 | 105.15 USDC | 100 | 1.0515 |
 
-The numbers above are illustrative. Actual yield depends on what the integrated strategies earn.
+The numbers above are illustrative. Actual yield depends on what the integrated protocols earn.
 
-## What `totalAssets()` includes
+## How the vault values itself
 
-`totalAssets()` returns the Vault's total USDC value, calculated as:
-
-- **Idle USDC** sitting in the Vault contract, plus
-- **The current value of every active strategy**, computed by asking each adapter for its `convertToAssets(vault, totalShares)`.
-
-The strategy total uses a fallback wrapper: if an adapter's `convertToAssets` call reverts — for example, because an external vault is paused or upgraded — the value falls back to the strategy's `lastKnownValue` rather than reverting the whole `totalAssets()` call. One broken external integration cannot brick TVL reads or block redemptions on healthy strategies.
+The vault tracks two things in its accounting: idle assets sitting in the vault and the current value of every active yield-protocol position. If a single integrated protocol is temporarily unable to report its value, the vault falls back to the last known value for that position rather than failing the read for everyone — see [Invariants](/security/invariants) for the auditor-facing detail.
 
 ## Where the yield comes from
 
-The integrated protocols are Morpho, AutoFinance, Avantis, and any other ERC-4626 vault Tumbuh adds in the future. Each one earns yield through its own mechanics — lending, looped strategies, market making, or otherwise. Tumbuh aggregates the result into a single share price.
+Tumbuh aggregates yield from a diversified set of DeFi protocols. Each one earns yield on its own terms — lending, looped strategies, market making, or other mechanics — and Tumbuh combines the results into a single rising share value.
 
-Yield reaches the Vault in two ways:
-
-1. **Native ERC-4626 share appreciation.** Most strategies grow their share price natively (Morpho, AutoFinance). The Vault's call to `convertToAssets` returns more USDC over time, so `totalAssets()` rises automatically.
-2. **Reward token distributions.** Some strategies pay rewards in a separate token (Morpho pays MORPHO via the [Universal Rewards Distributor](/glossary#universal-rewards-distributor-urd)). These are claimed and converted back to USDC through `claimAndCompound` on the StrategyManager — which the Operator triggers periodically. After compounding, the new USDC sits in the strategy and lifts the share price.
+Some protocols pay rewards in a separate token. The protocol periodically claims those rewards and converts them back to the vault asset, which lifts share value alongside the underlying yield.
 
 ## Rebalancing
 
-The StrategyManager can rebalance toward target percentages by calling `rebalance()`. Rebalance runs in two phases: pull from over-allocated strategies, then redeploy to under-allocated ones. The Operator triggers it when allocations drift, when target percentages change, or when a strategy is added or removed.
+As yield accrues at different rates across protocols, the vault occasionally re-balances toward target allocations. Rebalancing happens automatically and does not change your position value — only how it is distributed across protocols.
 
-Rebalance does not generate yield. It keeps the allocation aligned to the target.
-
-## tIDRX and yield
+## Receipt tokens and yield
 
 <Note>
-**Your tIDRX balance does not rise as yield accrues.** tIDRX is a receipt token — neither cToken-style (constant balance, rising token value) nor aToken-style (rising balance, pegged value). It is a pure receipt that confirms how much IDRX you originally deposited.
+**Your receipt-token balance does not rise as yield accrues.** The receipt token (currently tIDRX) is a pure receipt that confirms how much stablecoin you originally deposited.
 
-Your yield lives in the vault shares the Router holds on your behalf. You see it at redemption time, when your tIDRX burns for more IDRX than you deposited.
+Your yield lives in the vault. You see it at redemption time, when your receipt burns for more stablecoin than you deposited.
 </Note>
 
-If you want a real-time estimate of your position value, query the Router and Vault directly:
-
-```
-shares = router.getUserVaultShares(your_address)
-usdcValue = vault.convertToAssets(shares)
-estimatedIdrx = quote(usdcValue, USDC → IDRX)
-totalEstimate = estimatedIdrx + router.getIdleBalance(your_address)
-```
-
-A wallet or frontend usually packages this into a single "estimated value" number for you.
+Your live position value is visible on [app.tumbuh.fi](https://app.tumbuh.fi) at any time. The app reads the vault and the protocol's per-user records to show your current value.
 
 ## Performance fee
 
-A portion of profit above the Vault's all-time high may be taken as a performance fee. The fee is bounded at **3000 bps (30%)**, paid in vault shares to the treasury, and only applies above the high-watermark — never on drawdowns. See [Fees and yield](/fees-and-yield) for the full mechanics.
+<Note>
+**Performance fee — coming soon.** The fee model is being redesigned. **No performance fee is charged today.** The new design will be documented here when ready.
+</Note>
 
 ## Related pages
 
-- [Fees and yield](/fees-and-yield) — performance fee mechanics and slippage isolation.
-- [TumbuhVault](/protocol-architecture/tumbuh-vault) — the ERC-4626 vault implementation.
-- [StrategyManager](/protocol-architecture/strategy-manager) — allocation, rebalance, and reward compounding.
+- [Fees and yield](/fees-and-yield) — slippage isolation in depth.
+- [TumbuhVault](/protocol-architecture/tumbuh-vault) — the vault component.
+- [StrategyManager](/protocol-architecture/strategy-manager) — the allocator that distributes capital across protocols.

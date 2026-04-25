@@ -9,9 +9,9 @@ icon: "circle-play"
 
 Tumbuh is a three-step loop:
 
-1. **Deposit.** You send IDRX. The Router swaps most of it to USDC, deposits the USDC into the Vault, and mints tIDRX back to you as a receipt.
-2. **Earn.** The Vault delegates the USDC to a StrategyManager, which allocates across several ERC-4626 yield protocols. Yield raises the Vault's share price.
-3. **Withdraw.** You burn tIDRX. The Router redeems the corresponding vault shares for USDC, swaps USDC back to IDRX, and sends the IDRX to you alongside the idle IDRX it kept aside on your behalf.
+1. **Deposit.** You send your stablecoin. The protocol swaps most of it to the vault's underlying asset, places the result into the vault, and issues your receipt token.
+2. **Earn.** The vault spreads its capital across diversified DeFi yield protocols. Yield raises the vault's share value over time.
+3. **Withdraw.** You burn your receipt. The protocol redeems your share of the vault, swaps the proceeds back to your stablecoin, and sends them to you alongside the idle balance the protocol kept aside on your behalf.
 
 ## The full flow
 
@@ -19,46 +19,46 @@ Tumbuh is a three-step loop:
 sequenceDiagram
     actor User
     participant Router as TumbuhRouter
-    participant Swap as SwapContract
+    participant Swap as Swap
     participant Vault as TumbuhVault
-    participant SM as StrategyManager
-    participant External as External vaults
+    participant SM as Strategy allocator
+    participant External as Yield protocols
 
-    User->>Router: depositWithSwap(IDRX, ...)
-    Router->>Swap: fillQuote(IDRX → USDC)
-    Router->>Vault: deposit(USDC, receiver=Router)
-    Vault->>SM: deployFunds(USDC)
-    SM->>External: handleDeposit(...) per strategy
-    Router-->>User: mint tIDRX 1:1
-    Note over Router: idle IDRX kept per user
+    User->>Router: Deposit
+    Router->>Swap: Swap to vault asset
+    Router->>Vault: Place into vault
+    Vault->>SM: Allocate across strategies
+    SM->>External: Deposit into yield protocols
+    Router-->>User: Mint receipt token (1:1 with deposit)
+    Note over Router: Idle stablecoin kept per user
 
-    User->>Router: redeemWithSwap(tIDRX, ...)
-    Router->>Vault: redeem(shares, receiver=Router)
-    Vault->>SM: withdrawFunds(USDC)
-    SM->>External: handleWithdraw(...) per strategy
-    Router->>Swap: fillQuote(USDC → IDRX)
-    Router-->>User: IDRX (swap output + idle)
+    User->>Router: Withdraw
+    Router->>Vault: Redeem from vault
+    Vault->>SM: Pull from strategies
+    SM->>External: Exit yield protocols
+    Router->>Swap: Swap back to your stablecoin
+    Router-->>User: Stablecoin returned (swap output + idle)
 ```
 
 ## Who holds what
 
-The most non-obvious detail in Tumbuh is that **vault shares are held by the Router on your behalf, not in your wallet**. Your wallet holds tIDRX, which is a receipt — it never rises in balance and it never moves between addresses.
+The most non-obvious detail in Tumbuh is that **your vault position is held by the protocol on your behalf, not in your wallet**. Your wallet holds the receipt token, which never changes balance and never moves between addresses.
 
 ```mermaid
 flowchart TB
     subgraph Wallet["Your wallet"]
-        TIDRX["tIDRX (soulbound, 1:1 with deposited IDRX)"]
-        IDRXBal["IDRX (free balance)"]
+        TIDRX["Receipt token (1:1 with your deposit)"]
+        IDRXBal["Stablecoin balance"]
     end
 
-    subgraph RouterHoldings["TumbuhRouter holdings (per user)"]
-        Shares["Vault shares (proportional position)"]
-        IdleIDRX["Idle IDRX (unswapped portion)"]
+    subgraph RouterHoldings["Protocol-held (per user)"]
+        Shares["Vault position (proportional share)"]
+        IdleIDRX["Idle stablecoin (unswapped portion)"]
     end
 
-    subgraph VaultHoldings["TumbuhVault holdings"]
-        USDCIdle["Idle USDC"]
-        StratPos["Strategy positions"]
+    subgraph VaultHoldings["Vault holdings"]
+        USDCIdle["Idle vault asset"]
+        StratPos["Yield-protocol positions"]
     end
 
     Wallet -.tracks.-> RouterHoldings
@@ -66,25 +66,29 @@ flowchart TB
 ```
 
 <Info>
-The Router exposes `getUserVaultShares(user)` so you (or an integrator) can read the user's vault-share balance. This is the correct way to read a user's position — `vault.balanceOf(user)` returns zero, because the Router is the actual holder.
+The web app at [app.tumbuh.fi](https://app.tumbuh.fi) reads your full position automatically — including the share of vault assets attributed to your address and any idle stablecoin held on your behalf. You do not need to read the on-chain records yourself.
 </Info>
 
 ## A worked example
 
-A full numerical walkthrough lives on the [deposit flow](/how-it-works/deposit-flow) page. The short version:
+> *Example using IDRX as the entry stablecoin. Other supported stablecoins follow the same flow.*
+>
+> *Exchange rates fluctuate. Examples on this page use a reference rate of approximately 17,252.70 IDR/USD (April 2026); your actual amounts vary with market conditions.*
+
+A short version (full numerical walkthrough lives on the [deposit flow](/how-it-works/deposit-flow) page):
 
 - You deposit **100,000 IDRX**.
-- With a swap percentage of 80%, the Router swaps **80,000 IDRX** to USDC and keeps **20,000 IDRX** idle on your behalf.
-- The swap returns roughly **79.5 USDC** (after market slippage).
-- The 79.5 USDC enters the Vault, which allocates it across active strategies — at launch, 10% to Morpho Vault 1, 10% to Morpho Vault 2, 40% to AutoFinance, 40% to Avantis.
-- Your wallet now holds **100,000 tIDRX**. Your position is the vault shares held by the Router plus the 20,000 idle IDRX.
+- With a swap portion of about 80%, the protocol swaps **80,000 IDRX** to the vault's underlying asset (currently USDC) and keeps **20,000 IDRX** idle on your behalf.
+- At a market rate of roughly 17,252.70 IDR/USD, the swap returns approximately **4.64 USDC** before slippage.
+- The vault asset enters the vault and is spread across the active yield protocols.
+- Your wallet now holds **100,000 tIDRX**. Your full position is the vault share held on your behalf plus the 20,000 IDRX idle balance.
 
-When you redeem the full 100,000 tIDRX later, the Router pulls a proportional share of vault USDC, swaps it back to IDRX, and returns the result alongside the 20,000 idle IDRX. If yield has accrued, you receive more IDRX than you deposited.
+When you redeem the full 100,000 tIDRX later, the protocol pulls a proportional share of the vault, swaps it back to IDRX, and returns the result alongside the 20,000 IDRX idle balance. If yield has accrued, you receive more IDRX than you deposited.
 
 ## Where to go next
 
-- [Getting started](/how-it-works/getting-started) — the practical first-deposit walkthrough.
-- [Deposit flow](/how-it-works/deposit-flow) — what `depositWithSwap` does step by step.
-- [Yield generation](/how-it-works/yield-generation) — how share price rises and why your tIDRX balance does not change.
-- [Withdraw flow](/how-it-works/withdraw-flow) — what `redeemWithSwap` does and how slippage isolation works.
+- [Getting started](/how-it-works/getting-started) — the practical first-deposit walkthrough on app.tumbuh.fi.
+- [Deposit flow](/how-it-works/deposit-flow) — what happens behind the scenes step by step.
+- [Yield generation](/how-it-works/yield-generation) — how share value rises and why your receipt-token balance does not change.
+- [Withdraw flow](/how-it-works/withdraw-flow) — how to withdraw and how slippage isolation works.
 - [Risks and disclosures](/security/risks-and-disclosures) — what to know before depositing.
