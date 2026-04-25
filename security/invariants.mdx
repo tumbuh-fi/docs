@@ -33,6 +33,7 @@ Each invariant is enforced by the contracts at the location given. Any breach im
 | 16 | `(adapter, vault)` strategy registrations are unique — duplicates revert in `addFarmStrategy`. | `StrategyManager.addFarmStrategy` |
 | 17 | A reactivated strategy starts at 0% allocation. | `StrategyManager.reactivateStrategy` |
 | 18 | `totalAssets()` does not revert when a single strategy's `convertToAssets` reverts (uses `lastKnownValue` fallback). | `StrategyValueLib.getValueOrFallback` |
+| 19 | The Vault's `totalSupply()` is non-zero from deployment onward (dead-share seed mint at initialization). | `TumbuhVault._initialize` |
 
 ## Trust assumptions
 
@@ -49,6 +50,15 @@ These are the points where the protocol relies on something that cannot be enfor
 <Warning>
 **Admin-key trust is currently the largest residual risk.** No on-chain timelock means admin actions take effect immediately. Operational mitigations (multisig, procedural delays) are off-chain and cannot be verified from contract state.
 </Warning>
+
+## ERC-4626 inflation-attack protection
+
+ERC-4626 is vulnerable to a "first depositor" attack where an early actor donates dust to the Vault to skew the share price. Tumbuh blocks this in two ways:
+
+- **Decimals offset.** `_decimalsOffset()` returns 3, so shares have 9 decimals against USDC's 6. This raises the cost of any donation-based skew.
+- **Dead shares.** At deployment, the Vault mints a small share quantity (1,000 USDC wei worth) to `0x...dEaD`. With non-zero `totalSupply` from the start (see invariant #19), attacker donations cannot drive the share price arbitrarily high.
+
+Combined, these make the standard inflation attack uneconomic.
 
 ## How to read this page
 
