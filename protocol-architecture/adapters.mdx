@@ -59,9 +59,9 @@ The same generic adapter contract powers multiple yield-protocol integrations �
 
 The reward-claim path retrieves accrued reward tokens from Morpho's [Universal Rewards Distributor](/glossary#universal-rewards-distributor-urd) using a Merkle proof, transfers them to the strategy allocator, and the allocator then converts them back into the vault asset and re-deposits the result.
 
-## Authoring a new adapter
+## Adding a new yield protocol
 
-If a protocol exposes an ERC-4626 vault and pays no extra rewards, you do not need a new adapter — register the vault as a strategy on the existing `GenericERC4626Strategy`. If a protocol pays rewards through a non-standard distributor, write a new contract that extends `GenericERC4626Strategy` and overrides the reward-claim method. Detailed walkthrough on the [adapter guide](/developers/adapter-guide) page.
+Adding a new yield protocol to Tumbuh is coordinated with the Tumbuh team. Most protocols only require pointing the existing `GenericERC4626Strategy` adapter at the protocol's ERC-4626 vault — no new contract is needed. Protocols that pay rewards through a non-standard distributor require a new adapter contract; that work is sequenced with the team rather than authored independently.
 
 ## Important caveats
 
@@ -76,4 +76,3 @@ If a protocol exposes an ERC-4626 vault and pays no extra rewards, you do not ne
 ## Related pages
 
 - [StrategyManager](/protocol-architecture/strategy-manager) — the only authorized caller of adapter methods.
-- [Adapter guide](/developers/adapter-guide) — developer walkthrough for authoring a new adapter contract.
