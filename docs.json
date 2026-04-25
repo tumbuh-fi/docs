@@ -44,10 +44,6 @@
         "pages": ["tokens"]
       },
       {
-        "group": "Fees and yield",
-        "pages": ["fees-and-yield"]
-      },
-      {
         "group": "Security",
         "pages": [
           "security/access-control",
