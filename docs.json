@@ -16,13 +16,15 @@
     "groups": [
       {
         "group": "Introduction",
-        "pages": ["introduction"]
+        "pages": [
+          "introduction",
+          "how-it-works"
+        ]
       },
       {
-        "group": "How it works",
+        "group": "Using Tumbuh",
         "pages": [
           "how-it-works/getting-started",
-          "how-it-works/overview",
           "how-it-works/deposit-flow",
           "how-it-works/yield-generation",
           "how-it-works/withdraw-flow"
