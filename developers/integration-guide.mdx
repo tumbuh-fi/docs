@@ -9,6 +9,10 @@ icon: "plug-zap"
 
 This page is for developers writing code that calls Tumbuh — either on-chain from another contract, or off-chain from a backend or wallet. It covers the deposit and redeem paths, how to build 0x swap data correctly, and the edge cases that catch new integrators.
 
+<Note>
+Tumbuh may add additional Router or Vault deployments for other supported entry stablecoins in the future. Design integrations against the addresses listed in [Contract addresses](/developers/contract-addresses), not against the assumption of a single instance.
+</Note>
+
 ## Deposit from a smart contract
 
 ```solidity
