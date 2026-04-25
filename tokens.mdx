@@ -30,7 +30,9 @@ flowchart TB
     RouterHoldings -.represents.-> VaultHoldings
 ```
 
-## IDRX — the entry asset (current)
+## IDRX
+
+*The current entry asset.*
 
 **IDRX** is the current entry stablecoin, issued and managed by an external project. Tumbuh treats it as the **current entry asset**: the protocol accepts IDRX, swaps the configured portion to the vault asset, and stores the rest as a per-user idle balance.
 
@@ -44,7 +46,9 @@ Tumbuh does not issue, mint, or back IDRX. For information about IDRX itself —
 
 The protocol is designed to support additional entry stablecoins over time, without changes to the underlying vault.
 
-## USDC — the vault asset (current)
+## USDC
+
+*The current vault asset.*
 
 **USDC** is the asset the vault is currently denominated in. It has 6 decimals on Base. Tumbuh holds idle balances in the vault asset, deploys it to yield protocols, and accounts for the vault's value in this asset.
 
@@ -58,7 +62,9 @@ USDC is chosen to match the denomination of the integrated yield protocols. As t
 
 You do not need to hold USDC to use Tumbuh. The protocol converts your stablecoin to the vault asset for you on deposit and converts it back on withdrawal.
 
-## tIDRX — the receipt token
+## tIDRX
+
+*The current receipt token.*
 
 **tIDRX** is the only token Tumbuh itself issues. It is your **receipt token** — soulbound, 2 decimals, minted 1:1 with the gross stablecoin amount you deposit and burned 1:1 when you redeem.
 
