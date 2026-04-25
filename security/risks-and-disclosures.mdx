@@ -33,7 +33,7 @@ This page lists the known risks of depositing into Tumbuh. Each entry follows th
 
 **Mitigation.** Tumbuh diversifies across multiple strategies; the launch allocation is roughly 10% / 10% / 40% / 40% across four vaults. The `getValueOrFallback` mechanism keeps the Vault's `totalAssets()` readable even if one strategy reverts on `convertToAssets`. The Guardian can call `emergencyWithdrawStrategy` to force-exit a misbehaving strategy.
 
-**Residual.** Diversification reduces but does not eliminate external protocol risk. A failure of any one integrated protocol still translates to a proportional loss for Tumbuh holders. See [Integrations](/integrations) for the current strategy set and per-protocol notes.
+**Residual.** Diversification reduces but does not eliminate external protocol risk. A failure of any one integrated protocol still translates to a proportional loss for Tumbuh holders.
 
 ## Swap slippage risk
 

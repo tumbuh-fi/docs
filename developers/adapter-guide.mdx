@@ -7,7 +7,7 @@ icon: "wrench"
 
 # Adapter guide
 
-This page is for developers writing a new adapter contract — typically because the target protocol pays reward tokens through a non-standard distributor. If the target protocol is a clean ERC-4626 vault with no rewards, you do not need a new adapter; the existing `GenericERC4626Strategy` handles it. See [Add a new protocol](/integrations-add-new-protocol) for the operational checklist in that case.
+This page is for developers writing a new adapter contract — typically because the target protocol pays reward tokens through a non-standard distributor. If the target protocol is a clean ERC-4626 vault with no rewards, you do not need a new adapter; the existing `GenericERC4626Strategy` handles it.
 
 ## When you need a new adapter
 
@@ -126,7 +126,7 @@ Use the same naming convention as the existing adapters (`tumbuh.morphoStrategy.
   </Step>
 
   <Step title="Register with StrategyManager">
-    The Operator calls `strategyManager.addFarmStrategy(proxy, vault, percentage)`. See [Add a new protocol](/integrations-add-new-protocol) for the operational checklist.
+    Once your adapter contract is deployed and verified, hand it off to the Tumbuh team for on-chain registration. External adapter authors do not register strategies directly — registration is performed by the protocol operator.
   </Step>
 </Steps>
 
@@ -144,5 +144,4 @@ Use the same naming convention as the existing adapters (`tumbuh.morphoStrategy.
 
 - [Adapters](/protocol-architecture/adapters) — adapter layer reference.
 - [StrategyManager](/protocol-architecture/strategy-manager) — registration and lifecycle.
-- [Add a new protocol](/integrations-add-new-protocol) — operational steps after the contract is deployed.
 - [Upgradeability](/security/upgradeability) — UUPS and ERC-7201 conventions.
