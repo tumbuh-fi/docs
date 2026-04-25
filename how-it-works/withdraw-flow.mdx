@@ -31,11 +31,11 @@ This page walks through what happens when you withdraw on [app.tumbuh.fi](https:
   </Step>
 
   <Step title="Review the estimate">
-    The app shows the expected deposit-asset output, the swap rate at execution, and a slippage default.
+    The app shows the expected deposit-asset output and the swap rate at execution.
 
     {/* TODO: replace with app screenshot */}
     <Frame caption="Review your withdrawal estimate">
-      ![Withdraw review with output estimate and slippage setting](/images/checks-passed.png)
+      ![Withdraw review with output estimate and rate](/images/checks-passed.png)
     </Frame>
   </Step>
 
@@ -79,13 +79,9 @@ Tumbuh isolates the second cost to the user who triggered it: only your proceeds
 
 A user holding ~50% of the vault initiates a full withdrawal on app.tumbuh.fi. Their slice estimates approximately **1,000 USDC** of vault assets. With ~0.3% exit cost, the actual amount received is **~997 USDC**. That converts to roughly **17.2 million IDRX** at the reference rate, plus the user's idle balance. Other holders' position value is unchanged.
 
-## Slippage protection
+## Slippage
 
-The web app pre-fills a sensible slippage default for the entire round trip. If you want to set it manually, 0.5%–1% is the standard range.
-
-<Warning>
-A slippage bound set too tight will cause the transaction to revert and you will pay gas without withdrawing. Setting it too loose accepts more cost from market movement. Most users do not need to change the default — review the value the app proposes before signing.
-</Warning>
+Slippage is handled automatically. The protocol picks a sensible bound on every withdrawal; there is no manual setting. If the market rate moves too far between submission and execution, the transaction reverts — you pay gas, the withdrawal does not happen, and you can re-submit with a fresh estimate.
 
 ## If withdrawals are paused
 

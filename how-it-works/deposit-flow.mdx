@@ -83,13 +83,9 @@ When you confirm the deposit, the protocol does three things in a single transac
 
 The vault asset received enters the vault and is spread across the active yield protocols. The 20,000 IDRX stays as your idle balance for cheap withdrawal later. Your receipt token confirms your position; its balance does not rise as yield accrues — see [Yield generation](/how-it-works/yield-generation).
 
-## Slippage protection
+## Slippage
 
-The web app picks a sensible slippage default for you (a percentage below the live quote that the transaction is allowed to deviate before it reverts). If you want to set it manually, 0.5%–1% is the standard range.
-
-<Tip>
-Tighter bounds increase the chance of a reverted transaction; looser bounds accept more cost from market movement. Most users do not need to change the default.
-</Tip>
+Slippage is handled automatically. The protocol picks a sensible bound on every transaction; there is no manual setting. If the market rate moves too far between submission and execution, the transaction reverts — you pay gas, the deposit does not happen, and you can re-submit with a fresh quote.
 
 ## Common pitfalls
 
