@@ -13,7 +13,7 @@ This page walks through what happens when you deposit on [app.tumbuh.fi](https:/
 
 <Steps>
   <Step title="Connect your wallet">
-    Open [app.tumbuh.fi](https://app.tumbuh.fi) and connect a Base-compatible wallet.
+    Open [app.tumbuh.fi](https://app.tumbuh.fi) and connect an EVM-compatible Web3 wallet.
 
     {/* TODO: replace with app screenshot */}
     <Frame caption="Connecting your wallet on app.tumbuh.fi">
@@ -94,7 +94,7 @@ Tighter bounds increase the chance of a reverted transaction; looser bounds acce
 ## Common pitfalls
 
 - **Stale quote.** Quotes have a short expiration window. The web app fetches a fresh quote when you press confirm; if you wait too long after that, refresh and try again.
-- **Wrong network.** Tumbuh runs on Base. Make sure your wallet is on Base, not Ethereum mainnet.
+- **Wrong network.** Make sure your wallet is on the network where Tumbuh is deployed (currently Base mainnet).
 - **Insufficient stablecoin balance.** Re-check your balance before signing — the transaction will revert if you do not have enough to cover the deposit.
 - **Paused state.** In the rare case the protocol is paused for safety reasons, deposits are temporarily blocked. Pause is reversible; try again when normal operation resumes.
 
