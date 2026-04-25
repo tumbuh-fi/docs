@@ -50,6 +50,7 @@
           "security/pausability-emergency",
           "security/upgradeability",
           "security/invariants",
+          "security/audits",
           "security/risks-and-disclosures"
         ]
       },
