@@ -1,0 +1,30 @@
+---
+title: "Vault asset"
+description: "The asset the vault is denominated in — currently USDC."
+sidebarTitle: "Vault asset"
+icon: "vault"
+---
+
+# Vault asset
+
+The **vault asset** is what Tumbuh's vault is denominated in. The protocol holds idle balances in this asset, deploys it to yield protocols, and accounts for the vault's value in this asset. You do not need to hold the vault asset to use Tumbuh — the protocol converts your [deposit asset](/tokens/deposit-asset) to the vault asset on deposit and converts it back on withdrawal.
+
+## Currently active: USDC
+
+**USDC** is the asset the vault is currently denominated in. USDC is chosen to match the denomination of the integrated yield protocols.
+
+| Property | Value |
+|---|---|
+| Decimals | 6 |
+| Network | Base mainnet |
+| Used for | Vault accounting and yield-protocol allocation |
+
+## Adding new vaults
+
+As the protocol adds vaults with different denominations in the future, this page will list the current asset for each vault.
+
+## Related pages
+
+- [Deposit asset](/tokens/deposit-asset) — what users deposit.
+- [Receipt token](/tokens/receipt-token) — your proof of deposit.
+- [TumbuhVault](/protocol-architecture/tumbuh-vault) — the vault component.

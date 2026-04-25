@@ -1,0 +1,45 @@
+---
+title: "Receipt token"
+description: "Your proof of deposit — currently tIDRX, soulbound and 1:1 with the amount you deposited."
+sidebarTitle: "Receipt token"
+icon: "receipt"
+---
+
+# Receipt token
+
+The **receipt token** is the only token Tumbuh itself issues. It is a soulbound ERC-20, minted 1:1 with the gross amount you deposit and burned 1:1 when you withdraw. It is your proof of deposit, not your yield-bearing position.
+
+## Currently active: tIDRX
+
+**tIDRX** is the current receipt token, issued when you deposit and burned when you withdraw.
+
+| Property | Value |
+|---|---|
+| Decimals | 2 |
+| Transferable | No — soulbound |
+| Issued by | the Tumbuh protocol |
+| Total supply | Sum of every depositor's gross deposit, minus what has been redeemed |
+
+## What the receipt is for
+
+The receipt token identifies you as the owner of a slice of the vault and is what you burn to withdraw. The actual yield-bearing instrument — your vault position — is held by the protocol on your behalf.
+
+<Note>
+**The receipt token is not yield-bearing.** It is a pure receipt that records how much you originally deposited. Your receipt-token balance does not change as yield accrues. You see your yield at withdrawal time, when the receipt burns for **more deposit asset than you originally deposited**.
+</Note>
+
+## Why soulbound
+
+Transfers between non-zero addresses are blocked at the contract level. Only mints (from `address(0)`) and burns (to `address(0)`) are allowed.
+
+This is intentional. The receipt token is tied to the protocol's per-user records, not to a wallet balance alone. If receipts could be transferred between wallets, the receipt and the underlying position would diverge — the new holder would have a receipt with no claim, and the original holder would have a claim with no proof. Soulbound enforcement keeps the receipt and the position bound to the same address.
+
+## Reading your position
+
+Because the receipt token does not reflect yield, you cannot read your deposit-asset-equivalent value from your wallet alone. The web app at [app.tumbuh.fi](https://app.tumbuh.fi) reads the vault and the protocol's per-user records to show your current value in your deposit asset.
+
+## Related pages
+
+- [Deposit asset](/tokens/deposit-asset) — what you deposit and what your receipt represents.
+- [Vault asset](/tokens/vault-asset) — what the vault is denominated in.
+- [Yield generation](/how-it-works/yield-generation) — why the receipt-token balance is flat while value rises.
