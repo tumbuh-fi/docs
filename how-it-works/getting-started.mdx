@@ -62,9 +62,9 @@ Open [app.tumbuh.fi](https://app.tumbuh.fi), connect an EVM-compatible Web3 wall
 
 Your receipt token is a confirmation of how much you originally deposited — minted 1:1 with the gross deposit. Your yield lives in the vault, not in the receipt. The receipt's balance does not rise as yield accrues; you see your yield at withdrawal, when the receipt burns for more than you deposited.
 
-## Setting slippage
+## Slippage
 
-The web app pre-fills a sensible slippage default for you. If you want to set it manually, the standard range is 0.5% to 1%. Tighter bounds increase the chance of a failed transaction; looser bounds accept more cost from market movement.
+Slippage is handled automatically. The protocol picks a sensible bound on every transaction; there is no manual setting. If the market rate moves too far between submission and execution, the transaction reverts — you pay gas, the deposit does not happen, and you can try again.
 
 ## Where to go next
 
