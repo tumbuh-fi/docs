@@ -31,8 +31,6 @@ function unpause() external onlyRole(GUARDIAN_ROLE);
 
 `GUARDIAN_ROLE` calls `pause()` on each affected contract independently. There is no atomic protocol-wide pause — the Guardian must pause the Vault, StrategyManager, and Router separately if they want a full halt.
 
-For consistency, the deployment scripts include a `PauseAll.s.sol` operational helper that sequences the three pause calls. See [Scripts and tooling](/developers/scripts-and-tooling).
-
 <Warning>
 **While the Router is paused, you cannot deposit or withdraw.** Vault shares continue to earn yield in the strategies during a pause — the share price does not freeze. But you cannot move IDRX in or out until the pause is lifted.
 </Warning>
