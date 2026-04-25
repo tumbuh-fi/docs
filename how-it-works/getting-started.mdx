@@ -1,0 +1,86 @@
+---
+title: "Getting started"
+description: "What you need, how to make your first deposit, and where to track your position."
+sidebarTitle: "Getting started"
+icon: "rocket"
+---
+
+# Getting started
+
+This page walks you through your first Tumbuh deposit. It assumes you already have a Web3 wallet that supports the Base network. If you do not, set one up with your wallet provider before continuing.
+
+## What you need
+
+- **A Base-compatible wallet.** Any wallet that supports the Base mainnet works. Make sure your wallet is connected to Base, not Ethereum mainnet.
+- **A small amount of ETH on Base** to pay gas for the deposit transaction. A few cents is usually enough.
+- **An IDRX balance.** IDRX is the entry asset. See the [IDRX project documentation](https://idrx.co/) for how to acquire and bridge it to Base.
+
+<Tip>
+If you have IDRX on a different chain, you must bridge it to Base before depositing. Tumbuh only reads IDRX from the Base IDRX contract.
+</Tip>
+
+## Your first deposit
+
+The actual deposit happens in a single transaction that calls `depositWithSwap` on the Router. Most wallets and frontends will package the steps below into one or two clicks.
+
+<Steps>
+  <Step title="Approve the Router">
+    Tumbuh needs permission to pull IDRX from your wallet. You sign a one-time `approve` transaction on the IDRX token contract that allows the [TumbuhRouter](/protocol-architecture/tumbuh-router) to spend up to a chosen amount on your behalf.
+
+    Your wallet UI usually presents this as a separate "Approve IDRX" step before the deposit.
+  </Step>
+
+  <Step title="Confirm the deposit">
+    The frontend or wallet calls `depositWithSwap(idrxAmount, receiver, minSharesOut, swapData)`:
+
+    - `idrxAmount` — how much IDRX to deposit.
+    - `receiver` — the address that will own the resulting position. Usually your own address.
+    - `minSharesOut` — the minimum vault shares you accept. Protects you against unfavorable swap rates.
+    - `swapData` — an opaque blob fetched from the 0x API for the IDRX → USDC swap.
+  </Step>
+
+  <Step title="Receive tIDRX">
+    Once the transaction confirms, the Router mints tIDRX to your wallet 1:1 with the IDRX you deposited. tIDRX is your receipt — it confirms your position and is the token you burn when you withdraw.
+  </Step>
+</Steps>
+
+## What you see afterward
+
+After a successful deposit, your wallet balances will look like this:
+
+| Token | Where | What it is |
+|---|---|---|
+| **tIDRX** | Your wallet | A receipt for the gross IDRX you deposited. Soulbound — cannot be transferred. |
+| **IDRX** | Your wallet | Reduced by the amount you deposited. |
+| **Vault shares** | Held by the Router on your behalf | Read with `router.getUserVaultShares(your_address)`. |
+| **Idle IDRX** | Held by the Router on your behalf | The unswapped portion of your deposit. Read with `router.getIdleBalance(your_address)`. |
+
+<Note>
+**Your tIDRX balance does not rise as yield accrues.** tIDRX is a receipt token, not a yield-bearing token. Your yield lives in the vault shares the Router holds for you, and you see it at withdrawal — when your tIDRX burns for more IDRX than you deposited.
+</Note>
+
+## Tracking your position
+
+To estimate the IDRX value of your current position at any time:
+
+1. Read your vault shares: `shares = router.getUserVaultShares(your_address)`.
+2. Convert to USDC: `usdc = vault.convertToAssets(shares)`.
+3. Quote that USDC amount in IDRX through the 0x API.
+4. Add `router.getIdleBalance(your_address)` to that estimate.
+
+The result is your approximate withdrawable IDRX. Actual withdrawal will differ slightly based on swap conditions and external-protocol exit slippage.
+
+## Choosing slippage bounds
+
+`depositWithSwap` and `redeemWithSwap` both take a `min*Out` parameter that protects you from the swap quote moving between your transaction submission and execution. A wallet-or-frontend usually pre-fills this — `0.5%` to `1%` below the live quote is a common default.
+
+<Warning>
+If you set the slippage bound too tight, your transaction will revert and you will pay gas without depositing. If you set it too loose, you accept more loss to slippage. Most wallets pick a sensible default; review it before signing.
+</Warning>
+
+## Where to go next
+
+- [How it works](/how-it-works/overview) — the full deposit-earn-withdraw loop.
+- [Deposit flow](/how-it-works/deposit-flow) — exactly what happens on-chain when you deposit.
+- [Withdraw flow](/how-it-works/withdraw-flow) — how to redeem your tIDRX for IDRX.
+- [Risks and disclosures](/security/risks-and-disclosures) — what to know before depositing.

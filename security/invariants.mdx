@@ -1,0 +1,64 @@
+---
+title: "Invariants and trust assumptions"
+description: "The single auditor and institutional reference for what Tumbuh enforces on-chain and what it trusts off-chain."
+sidebarTitle: "Invariants"
+icon: "scale-balanced"
+---
+
+# Invariants and trust assumptions
+
+This page consolidates two things that auditors, integrators, and institutional partners typically reconstruct from many sources: what the protocol **enforces** on-chain, and what it **trusts** that on-chain enforcement cannot guarantee.
+
+## Protocol invariants
+
+Each invariant is enforced by the contracts at the location given. Any breach implies a contract bug.
+
+| # | Invariant | Enforced in |
+|---|---|---|
+| 1 | `mint(uint256, address)` on the Vault always reverts with `NotImplemented`. | `TumbuhVault.mint` |
+| 2 | `withdraw(uint256, address, address)` on the Vault always reverts with `NotImplemented`. | `TumbuhVault.withdraw` |
+| 3 | `swapPercentage` is bounded `7000 ≤ swapPercentage ≤ 9000` bps. | `TumbuhRouter.setSwapPercentage` |
+| 4 | `performanceFeeBps ≤ 3000` (30%). | `TumbuhVault.setPerformanceFee` |
+| 5 | At most 10 strategies are active at once. | `StrategyManager.addFarmStrategy`, `reactivateStrategy` |
+| 6 | The sum of active strategy percentages is at most 10000 bps. | `StrategyManager.addFarmStrategy`, `updateStrategyPercentages` |
+| 7 | `swapTarget == allowanceHolder` on every `fillQuote`. | `SwapContract.fillQuote` |
+| 8 | `highWaterMark` is monotonically non-decreasing within `collectFee` (set to `totalAssets()` after a successful collection). | `TumbuhVault.collectFee` |
+| 9 | `setTidrx` succeeds at most once per Router instance. | `TumbuhRouter.setTidrx` |
+| 10 | TIDRX transfers where `from != 0 && to != 0` revert. | `TIDRX._update` |
+| 11 | TIDRX `mint` and `burn` are callable only by the immutable Router address recorded at construction. | `TIDRX.mint`, `TIDRX.burn`, `TIDRX.constructor` |
+| 12 | The Vault's `deposit` and `redeem` are callable only by the Router or `DEFAULT_ADMIN_ROLE`. | `TumbuhVault.onlyAuthorized` |
+| 13 | The StrategyManager's `deployFunds` and `withdrawFunds` are callable only by the Vault. | `StrategyManager.onlyVault` |
+| 14 | Adapter `handleDeposit`, `handleWithdraw`, `handleClaimExtraReward` are callable only by the StrategyManager. | `BaseAdapter.onlyStrategyManager` |
+| 15 | The SwapContract's `fillQuote` is callable only by the Router or the StrategyManager. | `SwapContract.onlyAuthorized` |
+| 16 | `(adapter, vault)` strategy registrations are unique — duplicates revert in `addFarmStrategy`. | `StrategyManager.addFarmStrategy` |
+| 17 | A reactivated strategy starts at 0% allocation. | `StrategyManager.reactivateStrategy` |
+| 18 | `totalAssets()` does not revert when a single strategy's `convertToAssets` reverts (uses `lastKnownValue` fallback). | `StrategyValueLib.getValueOrFallback` |
+
+## Trust assumptions
+
+These are the points where the protocol relies on something that cannot be enforced solely by Tumbuh's own contracts. Each assumption is a real residual risk.
+
+| # | Assumption | What we trust | If broken |
+|---|---|---|---|
+| 1 | **0x quote integrity.** | The 0x API returns a valid, executable quote at submission time and the AllowanceHolder address is honest. | Swaps could be routed through an attacker-controlled target. Mitigated by the `swapTarget == allowanceHolder` enforcement (invariant #7) — only quotes that route through the configured AllowanceHolder execute. |
+| 2 | **Morpho URD honesty.** | The Universal Rewards Distributor publishes Merkle roots that reflect actual entitlements. | A malicious URD root could let an attacker drain claimable balances — but only those addressable via the StrategyManager's adapter. Tumbuh user funds in vault shares are unaffected. |
+| 3 | **External vault accounting honesty.** | Morpho, AutoFinance, Avantis, and any other integrated ERC-4626 vault report `convertToAssets` truthfully and pay out what they owe on `redeem`. | TVL reads could be inflated; redemptions could pay out less than expected. Slippage isolation contains the impact to the withdrawer (see [Slippage isolation](/fees-and-yield#slippage-isolation)). The fallback in invariant #18 prevents one broken vault from bricking TVL. |
+| 4 | **Admin-key custody.** | `DEFAULT_ADMIN_ROLE`, `OPERATOR_ROLE`, `GUARDIAN_ROLE`, and `ADMIN_MANAGER` keyholders act honestly and hold private keys securely. | The admin can upgrade contracts immediately (no on-chain timelock — see [Upgradeability](/security/upgradeability)). The operator can rebalance and trigger reward claims; the guardian can pause and force-exit strategies. A compromised key set could materially harm depositors. |
+| 5 | **Base sequencer liveness.** | The Base L2 sequencer continues to process transactions and produce blocks. | Withdrawals stall during sequencer downtime. Funds are not at risk, but timing assumptions break. |
+
+<Warning>
+**Admin-key trust is currently the largest residual risk.** No on-chain timelock means admin actions take effect immediately. Operational mitigations (multisig, procedural delays) are off-chain and cannot be verified from contract state.
+</Warning>
+
+## How to read this page
+
+- An auditor uses **Protocol invariants** as the checklist for static analysis and property-based tests. If the contracts can be made to violate any row, that is a finding.
+- An integrator uses **Protocol invariants** as the contract surface they can rely on without re-reading the source — for example, "I never need to handle a `swapPercentage` outside `[7000, 9000]`."
+- An institutional partner uses **Trust assumptions** to evaluate counterparty risk. The list is exhaustive — anything not listed is enforced on-chain.
+
+## Related pages
+
+- [Access control](/security/access-control) — the authority side of invariants 12–15.
+- [Upgradeability](/security/upgradeability) — context for admin-key trust.
+- [Risks and disclosures](/security/risks-and-disclosures) — user-facing risk presentation.
+- [TumbuhVault](/protocol-architecture/tumbuh-vault) — the `mint`/`withdraw` revert and decimals invariants.

@@ -1,0 +1,215 @@
+---
+title: "Integration guide"
+description: "How to call Tumbuh from a contract or backend, including how to construct 0x swap data correctly."
+sidebarTitle: "Integration guide"
+icon: "plug-zap"
+---
+
+# Integration guide
+
+This page is for developers writing code that calls Tumbuh — either on-chain from another contract, or off-chain from a backend or wallet. It covers the deposit and redeem paths, how to build 0x swap data correctly, and the edge cases that catch new integrators.
+
+## Deposit from a smart contract
+
+```solidity
+// 1. Approve the Router to pull IDRX
+IERC20(IDRX).safeApprove(address(router), idrxAmount);
+
+// 2. Build swapData by calling 0x off-chain (see "Building 0x swap data" below)
+bytes memory swapData = abi.encode(allowanceHolder, quoteCallData);
+
+// 3. Call the Router
+uint256 shares = router.depositWithSwap(
+    idrxAmount,
+    receiver,
+    minSharesOut,
+    swapData
+);
+```
+
+The `receiver` is the address that owns the resulting position. tIDRX is minted to `receiver`, and the Router's `userVaultShares[receiver]` and `idrxIdleBalances[receiver]` mappings are updated for that address. If your contract is depositing on behalf of a user, pass the user's address as `receiver`.
+
+## Redeem from a smart contract
+
+```solidity
+// Build swapData for USDC → IDRX
+bytes memory swapData = abi.encode(allowanceHolder, quoteCallData);
+
+uint256 idrxOut = router.redeemWithSwap(
+    tidrxAmount,
+    receiver,
+    minIdrxOut,
+    swapData
+);
+```
+
+The caller must hold at least `tidrxAmount` of tIDRX — the Router burns it from `msg.sender` directly. If a user holds tIDRX but your contract is calling `redeemWithSwap` on their behalf, they must first transfer the tIDRX to your contract. **Note:** tIDRX is non-transferable between non-zero addresses, so this path is not generally possible. The user must call `redeemWithSwap` from the address holding the tIDRX.
+
+## Building 0x swap data for Tumbuh
+
+The `swapData` parameter is the trickiest part of integrating Tumbuh. It is `abi.encode(swapTarget, swapCallData)` where `swapTarget` **must equal the SwapContract's configured `allowanceHolder`** — otherwise the SwapContract reverts.
+
+<Warning>
+The SwapContract enforces `swapTarget == allowanceHolder`. Quotes from 0x's standard Swap API may return different `to` addresses for non-AllowanceHolder routes. You must use the AllowanceHolder API specifically.
+</Warning>
+
+### Steps
+
+<Steps>
+  <Step title="Use the 0x AllowanceHolder API">
+    Fetch a quote from 0x's AllowanceHolder endpoint, not the standard Swap API:
+
+    ```
+    GET https://api.0x.org/swap/allowance-holder/quote
+       ?chainId=8453
+       &sellToken={IDRX_address}
+       &buyToken={USDC_address}
+       &sellAmount={amount_in_wei}
+       &taker={SwapContract_address}
+    ```
+
+    Headers:
+
+    ```
+    0x-version: v2
+    0x-api-key: {your_0x_api_key}
+    ```
+  </Step>
+
+  <Step title="Verify the response">
+    The response contains a `transaction` object with `to` and `data` fields. Verify:
+
+    - `transaction.to` matches the AllowanceHolder address (`0x0000000000001fF3684f28c67538d4D072C22734` on Base).
+    - `transaction.data` is the call data the AllowanceHolder will execute on your behalf.
+
+    If `transaction.to` does not match the AllowanceHolder, the SwapContract will revert. This is the signal you fetched from the wrong endpoint.
+  </Step>
+
+  <Step title="ABI-encode swapData">
+    The Router and StrategyManager expect:
+
+    ```javascript
+    swapData = ethers.utils.defaultAbiCoder.encode(
+      ["address", "bytes"],
+      [transaction.to, transaction.data]
+    );
+    ```
+
+    Pass this `swapData` to `depositWithSwap`, `redeemWithSwap`, or `claimAndCompound`.
+  </Step>
+
+  <Step title="Refresh quotes immediately before submitting">
+    0x quotes have an expiration window. A quote older than ~30–60 seconds is likely to fail at the swap step. Always fetch the quote in the same flow as the transaction submission, not minutes earlier.
+  </Step>
+</Steps>
+
+## Picking slippage bounds
+
+Tumbuh's slippage parameters are last-line defenses, not the only ones — set them with realistic estimates.
+
+| Parameter | What it bounds | How to set |
+|---|---|---|
+| `minSharesOut` (deposit) | Minimum vault shares minted | `previewDeposit(usdc) × (1 − tolerance)` where `tolerance` is your acceptable loss (e.g., 1%) |
+| `minIdrxOut` (redeem) | Minimum IDRX received | Estimated IDRX out × (1 − tolerance), where the estimate accounts for both swap slippage and external-vault exit slippage |
+| `minUsdcOut` (claimAndCompound) | Minimum USDC from reward swap | Live 0x quote × (1 − tolerance) |
+
+Setting these too tight causes reverts and wasted gas. Setting them too loose accepts more slippage. A 0.5–1% buffer below the live preview is a reasonable starting point.
+
+## Reading a user's position
+
+```solidity
+// Get the user's vault shares (held by the Router on their behalf)
+uint256 shares = router.getUserVaultShares(user);
+
+// Convert to USDC value at current share price
+uint256 usdcValue = vault.convertToAssets(shares);
+
+// Add idle IDRX held by the Router
+uint256 idleIdrx = router.getIdleBalance(user);
+```
+
+The off-chain step from `usdcValue` to an IDRX-equivalent estimate goes through 0x — quote a USDC → IDRX swap at `usdcValue`, take the result, add `idleIdrx`.
+
+<Warning>
+**Do not use `vault.balanceOf(user)`.** It returns zero. Vault shares are held by the Router, not the user. Always read with `router.getUserVaultShares(user)` instead.
+</Warning>
+
+## Tabs: deposit example by tooling
+
+<Tabs>
+  <Tab title="ethers.js">
+    ```javascript
+    const router = new ethers.Contract(routerAddress, RouterABI, signer);
+    const idrx = new ethers.Contract(idrxAddress, ERC20ABI, signer);
+
+    // Approve
+    await idrx.approve(router.address, idrxAmount);
+
+    // Fetch 0x AllowanceHolder quote, build swapData, choose minSharesOut...
+    const swapData = ethers.utils.defaultAbiCoder.encode(
+      ["address", "bytes"],
+      [quote.transaction.to, quote.transaction.data]
+    );
+
+    const tx = await router.depositWithSwap(
+      idrxAmount,
+      receiverAddress,
+      minSharesOut,
+      swapData
+    );
+    await tx.wait();
+    ```
+  </Tab>
+
+  <Tab title="viem">
+    ```typescript
+    import { encodeAbiParameters } from "viem";
+
+    // Approve
+    await walletClient.writeContract({
+      address: idrxAddress,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [routerAddress, idrxAmount],
+    });
+
+    // Build swapData
+    const swapData = encodeAbiParameters(
+      [{ type: "address" }, { type: "bytes" }],
+      [quote.transaction.to, quote.transaction.data]
+    );
+
+    // Deposit
+    const hash = await walletClient.writeContract({
+      address: routerAddress,
+      abi: routerAbi,
+      functionName: "depositWithSwap",
+      args: [idrxAmount, receiverAddress, minSharesOut, swapData],
+    });
+    ```
+  </Tab>
+
+  <Tab title="Foundry">
+    See `script/DepositWithSwap.s.sol` in the repository for a working example. The script reads addresses from environment variables, fetches a 0x quote via `vm.ffi`, and submits the deposit.
+  </Tab>
+</Tabs>
+
+## Edge cases and pitfalls
+
+| Pitfall | Symptom | Fix |
+|---|---|---|
+| `vault.balanceOf(user)` returns 0 | "Why does the user have no shares?" | Read `router.getUserVaultShares(user)` instead. |
+| `mint()` or `withdraw()` reverts | "Standard ERC-4626 calls don't work" | Use `deposit` and `redeem` only. The Vault explicitly does not implement `mint` or `withdraw`. |
+| Stale 0x quote | Swap step reverts during `fillQuote` | Fetch the quote immediately before submitting. Quotes expire fast. |
+| Wrong `swapTarget` | SwapContract reverts | Use the 0x AllowanceHolder endpoint, not the standard Swap endpoint. |
+| Insufficient IDRX approval | `transferFrom` reverts at deposit | Approve at least `idrxAmount`; consider approving more if you plan repeated deposits. |
+| Below `minDepositAmount` | `depositWithSwap` reverts | Read `router.minDepositAmount()` first; the value may be 0 (check disabled) or non-zero. |
+| Paused Router | All deposit/redeem reverts | Check `router.paused()`. Wait for the Guardian to unpause, or coordinate with the admin (see [Risks](/security/risks-and-disclosures#router-recovery-runbook)). |
+| tIDRX not transferable | Cannot move position between wallets | Redeem on source, deposit from destination. There is no on-chain transfer path. |
+
+## Related pages
+
+- [Interfaces](/developers/interfaces) — full function and event reference.
+- [Contract addresses](/developers/contract-addresses) — where to point your client.
+- [Adapter guide](/developers/adapter-guide) — for protocols integrating *into* Tumbuh.
+- [Scripts and tooling](/developers/scripts-and-tooling) — Foundry scripts for local testing.

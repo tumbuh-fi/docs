@@ -1,0 +1,73 @@
+---
+title: "Contract addresses"
+description: "Canonical contract addresses for Tumbuh and the external integrations on Base mainnet."
+sidebarTitle: "Contract addresses"
+icon: "map-pin"
+---
+
+# Contract addresses
+
+This page is the single source of truth for the addresses an integrator needs to interact with Tumbuh on Base mainnet (chain ID **8453**).
+
+<Info>
+**Last updated: 2026-04-25.** Tumbuh core contracts pending mainnet deployment; external integrations are live on Base mainnet today.
+</Info>
+
+## Tumbuh core
+
+| Contract | Address | Status |
+|---|---|---|
+| TumbuhVault | _Not yet deployed — Base mainnet_ | Pending |
+| StrategyManager | _Not yet deployed — Base mainnet_ | Pending |
+| TumbuhRouter | _Not yet deployed — Base mainnet_ | Pending |
+| SwapContract | _Not yet deployed — Base mainnet_ | Pending |
+| TIDRX | _Not yet deployed — Base mainnet_ | Pending |
+| GenericERC4626Strategy (proxy) | _Not yet deployed — Base mainnet_ | Pending |
+| MorphoStrategy (proxy) | _Not yet deployed — Base mainnet_ | Pending |
+| Treasury | _Not yet finalized_ | Pending |
+
+After mainnet deployment, this section will be updated with verified BaseScan-linked addresses, the deploy commit hash, and the active implementation address per proxy. Re-deployments and upgrades will be tracked in changelog entries.
+
+## External integrations
+
+| Contract | Address | Notes |
+|---|---|---|
+| **IDRX (entry asset)** | [`0x18Bc5bcC660cf2B9cE3cd51a404aFe1a0cBD3C22`](https://basescan.org/address/0x18Bc5bcC660cf2B9cE3cd51a404aFe1a0cBD3C22) | 2 decimals. Issued by an external project. See [tokens.idrx](/tokens#idrx). |
+| **USDC (vault asset)** | [`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`](https://basescan.org/address/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913) | 6 decimals. Native Circle-issued USDC on Base. |
+| **0x AllowanceHolder** | [`0x0000000000001fF3684f28c67538d4D072C22734`](https://basescan.org/address/0x0000000000001fF3684f28c67538d4D072C22734) | The hard-validated `swapTarget` for `SwapContract.fillQuote`. |
+| **Morpho Vault 1** | [`0xBEEFA7B88064FeEF0cEe02AAeBBd95D30df3878F`](https://basescan.org/address/0xBEEFA7B88064FeEF0cEe02AAeBBd95D30df3878F) | One of two Morpho strategies. Reward claiming via URD. |
+| **Morpho Vault 2** | [`0xcdDCDd18A16ED441F6CB10c3909e5e7ec2B9e8f3`](https://basescan.org/address/0xcdDCDd18A16ED441F6CB10c3909e5e7ec2B9e8f3) | Second Morpho strategy for diversification. |
+| **AutoFinance Vault** | [`0x9c6864105AEC23388C89600046213a44C384c831`](https://basescan.org/address/0x9c6864105AEC23388C89600046213a44C384c831) | Plain ERC-4626 strategy. |
+| **Avantis Vault** | [`0x944766f715b51967E56aFdE5f0Aa76cEaCc9E7f9`](https://basescan.org/address/0x944766f715b51967E56aFdE5f0Aa76cEaCc9E7f9) | Plain ERC-4626 strategy. |
+
+Addresses are sourced from `script/Deploy.s.sol` deployment configuration. They are referenced via environment variables at deploy time; the values above are the production Base mainnet values.
+
+## Role holders
+
+| Role | Holder | Notes |
+|---|---|---|
+| `DEFAULT_ADMIN_ROLE` (Vault, StrategyManager, Router) | _Pending finalization_ | Multisig recommended. |
+| `OPERATOR_ROLE` (Vault, StrategyManager) | _Pending finalization_ | Day-to-day operational signer. |
+| `GUARDIAN_ROLE` (Vault, StrategyManager, Router) | _Pending finalization_ | Pause and emergency-exit signer. |
+| `ADMIN_MANAGER` (Router) | _Pending finalization_ | Tunes swap percentage and minimum deposit. |
+
+These will be filled in alongside the core contract addresses when mainnet is live. See [Access control](/security/access-control) for what each role does.
+
+## Network
+
+| Property | Value |
+|---|---|
+| Network | Base mainnet |
+| Chain ID | 8453 |
+| RPC | `https://mainnet.base.org` (public) |
+| Explorer | [https://basescan.org](https://basescan.org) |
+
+## Testnet
+
+A testnet deployment may be published before mainnet. If so, addresses will appear here under a separate Base Sepolia heading. Until then, use the [Foundry test suite](/developers/scripts-and-tooling) for integration testing locally.
+
+## Related pages
+
+- [Interfaces](/developers/interfaces) — function signatures and event signatures.
+- [Integration guide](/developers/integration-guide) — how to call Tumbuh from your contract or backend.
+- [Access control](/security/access-control) — what each role can do.

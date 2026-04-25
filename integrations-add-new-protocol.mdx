@@ -1,0 +1,120 @@
+---
+title: "Add a new protocol"
+description: "Operational checklist for the Tumbuh team or partner protocols to integrate a new yield source."
+sidebarTitle: "Add a new protocol"
+icon: "circle-plus"
+---
+
+# Add a new protocol
+
+This page is the **operational checklist** for adding a new yield protocol to Tumbuh. It is written for the Operator and admin signers, not external developers — the developer-facing walkthrough for authoring an adapter contract lives in the [Adapter guide](/developers/adapter-guide).
+
+## Pre-check: is the protocol ERC-4626?
+
+| Question | Answer | Adapter to use |
+|---|---|---|
+| Does the target vault implement ERC-4626 cleanly? | Yes, and no reward tokens | Use the existing `GenericERC4626Strategy` — **no new contract needed**. |
+| ERC-4626 plus reward tokens via a custom distributor? | Yes (e.g., Morpho-like URD) | Author a new adapter extending `GenericERC4626Strategy`, override `handleClaimExtraReward`. See [Adapter guide](/developers/adapter-guide). |
+| Not ERC-4626 (e.g., custom deposit/redeem ABI)? | Yes | Author a new adapter extending `BaseAdapter` from scratch. Higher engineering effort and risk. |
+
+If the answer is the first row, registration is the only on-chain work. The other rows require a contract deployment first.
+
+## Steps
+
+<Steps>
+  <Step title="Confirm vault address and decimals">
+    Confirm the target vault is on Base mainnet, denominated in USDC, and the address is verified on BaseScan. Read `vault.asset()` to confirm the underlying token is USDC and `vault.decimals()` to confirm share decimals.
+
+    A vault that is not USDC-denominated cannot be added directly — the StrategyManager assumes all strategies share the Vault's USDC asset.
+  </Step>
+
+  <Step title="(If needed) deploy and verify a new adapter">
+    Skip this step if you are using the existing `GenericERC4626Strategy`. Otherwise:
+
+    - Deploy the new adapter implementation contract.
+    - Deploy an `ERC1967Proxy` pointing at the implementation, with `initialize(...)` calldata.
+    - Verify both on BaseScan.
+    - Confirm the adapter's owner is the intended admin address.
+
+    See `script/Deploy.s.sol` for the patterns used for the existing adapters.
+  </Step>
+
+  <Step title="Decide percentage allocation">
+    Pick the new strategy's allocation in basis points. Constraints:
+
+    - Per-strategy: ≤ 10000 bps.
+    - Sum across all active strategies: ≤ 10000 bps.
+    - Active count after registration: ≤ 10.
+
+    If adding the new percentage would push the sum over 10000 bps, plan a corresponding `updateStrategyPercentages` to reduce other strategies first (or do it atomically in the same operator session).
+  </Step>
+
+  <Step title="Register with `addFarmStrategy`">
+    The Operator calls:
+
+    ```solidity
+    strategyManager.addFarmStrategy(
+        adapterAddress,    // GenericERC4626Strategy or your custom adapter proxy
+        vaultAddress,      // the external ERC-4626 vault
+        percentageBps      // allocation in bps
+    );
+    ```
+
+    On success, the function returns `strategyId` and emits `FarmStrategyAdded(strategyId, adapter, vault)`. Note the `strategyId` — it is the canonical handle for future operations on this strategy.
+  </Step>
+
+  <Step title="(Optional) Rebalance">
+    If you set the new percentage non-zero, the StrategyManager will use it on the next `deployFunds` call. To immediately bring the new strategy up to its target weight, the Operator calls `rebalance()` — this is a two-phase operation that withdraws excess from over-allocated strategies and deposits the shortfall into the new one.
+
+    Skip this step if the registration was at 0% allocation; the strategy is registered but inactive in flow until `updateStrategyPercentages` gives it a real share.
+  </Step>
+
+  <Step title="Verify in monitoring">
+    After registration, verify:
+
+    - `getFarmStrategy(strategyId)` returns the expected adapter, vault, percentage, and `isActive = true`.
+    - `getTotalValueLocked()` includes the new strategy's value (after the next deposit or rebalance).
+    - Any reward claiming workflow has a tested Merkle-proof retrieval path (custom adapters only).
+  </Step>
+</Steps>
+
+## Removing a strategy
+
+To exit a strategy entirely:
+
+```solidity
+strategyManager.removeFarmStrategy(strategyId);
+```
+
+The function withdraws all funds from the strategy, deactivates it, and redistributes the percentage budget across remaining active strategies. The strategy can be reactivated later at 0% allocation via `reactivateStrategy(id)` if the underlying vault recovers — see the [strategy lifecycle](/protocol-architecture/strategy-manager#lifecycle).
+
+## Updating allocations only
+
+To shift weights without adding or removing strategies:
+
+```solidity
+strategyManager.updateStrategyPercentages(
+    [strategyId1, strategyId2, ...],
+    [newBps1, newBps2, ...]
+);
+```
+
+The function validates each percentage ≤ 10000 bps and the total across active strategies ≤ 10000 bps, then triggers an internal rebalance.
+
+## Roles required
+
+| Action | Role |
+|---|---|
+| Deploy a new adapter | Whoever holds the deployment private key |
+| Register the strategy | `OPERATOR_ROLE` on StrategyManager |
+| Update percentages, rebalance, claim and compound | `OPERATOR_ROLE` |
+| Emergency-exit | `GUARDIAN_ROLE` |
+| Wire a new SwapContract or Vault reference | `DEFAULT_ADMIN_ROLE` |
+
+See [Access control](/security/access-control) for the full matrix.
+
+## Related pages
+
+- [Integrations](/integrations) — current strategy set.
+- [Adapter guide](/developers/adapter-guide) — developer walkthrough for authoring an adapter contract.
+- [StrategyManager](/protocol-architecture/strategy-manager) — full reference for the registration and lifecycle functions.

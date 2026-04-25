@@ -1,0 +1,106 @@
+---
+title: "Upgradeability"
+description: "How Tumbuh's upgradeable contracts are structured, why no on-chain timelock yet, and the storage-namespace convention."
+sidebarTitle: "Upgradeability"
+icon: "arrow-up-right-from-square"
+---
+
+# Upgradeability
+
+All five core Tumbuh contracts (Router, Vault, StrategyManager, SwapContract, Adapters) are upgradeable. The protocol uses [UUPS](https://docs.openzeppelin.com/contracts/5.x/api/proxy#UUPSUpgradeable) with [ERC-7201](https://eips.ethereum.org/EIPS/eip-7201) namespaced storage to keep storage layouts stable across upgrades.
+
+## Pattern: UUPS
+
+In UUPS, the upgrade logic lives in the implementation contract, not the proxy. The proxy delegates everything to the implementation, including upgrades themselves. This is more gas-efficient than the Transparent proxy pattern at the cost of pushing upgrade authorization into each implementation:
+
+```solidity
+function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+```
+
+Every Tumbuh contract overrides `_authorizeUpgrade` to require the role specified in the [Access control](/security/access-control) matrix — `DEFAULT_ADMIN_ROLE` for the core contracts, `Owner` for the SwapContract and adapters.
+
+## Storage: ERC-7201
+
+ERC-7201 prescribes a namespaced storage layout: instead of using sequential slots starting at zero, each storage struct lives at a deterministic slot derived from a string identifier. This prevents storage layout collisions when adding fields across upgrades.
+
+Tumbuh's namespace identifiers follow the pattern `tumbuh.<contract>.storage`:
+
+| Contract | Namespace identifier |
+|---|---|
+| TumbuhRouter | `tumbuh.tumbuhRouter.storage` |
+| TumbuhVault | `tumbuh.tumbuhVault.storage` |
+| StrategyManager | `tumbuh.strategyManager.storage` |
+| SwapContract | `tumbuh.swapContract.storage` |
+| GenericERC4626Strategy | `tumbuh.genericERC4626Strategy.storage` |
+| MorphoStrategy | `tumbuh.morphoStrategy.storage` |
+
+Each contract computes the slot with the standard formula and reads/writes its `Storage` struct at that slot. New fields can be appended within the struct without affecting other contracts' slots.
+
+## Proxy contracts
+
+| Contract | Proxy type |
+|---|---|
+| TumbuhRouter, TumbuhVault, StrategyManager, SwapContract | Custom UUPS proxies under `src/proxy/` |
+| GenericERC4626Strategy, MorphoStrategy | ERC1967Proxy (OpenZeppelin standard) |
+
+The custom UUPS proxies are thin wrappers around ERC1967Proxy with constructor signatures tailored for the deployment script. They do not change the upgrade semantics.
+
+## No on-chain timelock — known limitation
+
+<Warning>
+There is no on-chain timelock on upgrades or admin actions. `DEFAULT_ADMIN_ROLE` and `Owner` accounts can upgrade contracts immediately upon signing. Operational governance (multisig signers, procedural delays) is the only mitigation today.
+
+A timelock module is on the [future considerations](#future-considerations) list. Until it ships, users and integrators must trust that the admin keys are held by a multisig with a delay-by-policy.
+</Warning>
+
+## Deployment-time invariants
+
+Two deployment-time invariants further reduce the upgrade attack surface:
+
+### `setTidrx` is one-time only
+
+```solidity
+function setTidrx(address newTidrx) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    if (tidrx() != address(0)) revert TidrxAlreadySet();
+    // ...
+}
+```
+
+The Router refuses to overwrite the receipt-token address once it has been set. After the first call, even `DEFAULT_ADMIN_ROLE` cannot re-wire which TIDRX contract the Router mints to. This is intentional: the receipt token is part of the contract's identity, not a tunable parameter.
+
+### TIDRX router address is immutable
+
+```solidity
+address public immutable router;
+
+constructor(address _router) ERC20("Tumbuh IDRX", "tIDRX") {
+    router = _router;
+}
+```
+
+The TIDRX contract's authorized minter and burner is set at construction time and cannot be changed. There is no admin function to update it. Re-pointing the Router would require deploying a new TIDRX contract and a coordinated migration — not a single transaction.
+
+## Adapter upgrades
+
+Adapters (`GenericERC4626Strategy`, `MorphoStrategy`) live behind ERC1967Proxy. Each adapter has its own `Owner` (typically the deployer or a designated admin). Upgrading an adapter requires the adapter's owner to call `upgradeToAndCall`. The StrategyManager does not need to be re-wired — the proxy address is stable.
+
+## Practical upgrade flow
+
+A typical upgrade:
+
+1. Deploy the new implementation contract.
+2. The relevant role holder calls `upgradeToAndCall` (or equivalent) on the proxy.
+3. The proxy now delegates to the new implementation; storage namespaces ensure existing data remains accessible.
+
+The script `script/Upgrade.s.sol` automates these steps for the four core contracts. Each upgrade emits `Upgraded(implementation)` (the standard ERC1967 event) so observers can detect the change on-chain.
+
+## Future considerations
+
+- **On-chain timelock.** A timelock contract would defer all `DEFAULT_ADMIN_ROLE` actions by a fixed delay, giving users time to react before a high-impact change takes effect. Roadmap item.
+- **Audit.** A formal audit will prioritize storage-layout safety (ERC-7201 slot computation) and the upgrade-authorization paths.
+
+## Related pages
+
+- [Access control](/security/access-control) — who holds upgrade authority.
+- [Invariants](/security/invariants) — including the `setTidrx`-one-time and TIDRX-router-immutable invariants.
+- [Risks and disclosures](/security/risks-and-disclosures) — admin-key risk and the no-timelock disclosure.
