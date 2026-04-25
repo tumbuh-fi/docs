@@ -1,0 +1,32 @@
+---
+title: "Deposit asset"
+description: "The asset users deposit into Tumbuh — currently IDRX."
+sidebarTitle: "Deposit asset"
+icon: "circle-down"
+---
+
+# Deposit asset
+
+The **deposit asset** is the token users deposit into Tumbuh. The protocol accepts it, swaps the configured portion to the [vault asset](/tokens/vault-asset), and keeps the rest as a per-user idle balance. On withdrawal, the inverse: the vault asset is swapped back to the deposit asset and returned to the user's wallet.
+
+The deposit asset is the **extensibility point for additional supported assets**. The protocol is designed to add new deposit assets over time without changes to the underlying vault.
+
+## Currently active: IDRX
+
+**IDRX** is the current deposit asset. It is issued and managed by an external project; Tumbuh does not issue, mint, or back IDRX. For information about IDRX itself — issuance, peg mechanics, regulatory posture, supported networks — see the [IDRX project documentation](https://idrx.co/).
+
+| Property | Value |
+|---|---|
+| Decimals | 2 |
+| Network | Base mainnet |
+| Used for | Deposits and withdrawals through the protocol |
+
+## Adding new deposit assets
+
+Whether and when to add another deposit asset is a protocol decision, not a contract limitation. New deposit assets will be listed here as they are added; the underlying vault does not need to change.
+
+## Related pages
+
+- [Vault asset](/tokens/vault-asset) — what the vault is denominated in.
+- [Receipt token](/tokens/receipt-token) — your proof of deposit.
+- [Getting started](/how-it-works/getting-started) — your first deposit.

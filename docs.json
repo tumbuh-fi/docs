@@ -41,7 +41,11 @@
       },
       {
         "group": "Tokens",
-        "pages": ["tokens"]
+        "pages": [
+          "tokens/deposit-asset",
+          "tokens/vault-asset",
+          "tokens/receipt-token"
+        ]
       },
       {
         "group": "Security",
