@@ -1,82 +1,36 @@
 ---
 title: "SwapContract"
-description: "A thin wrapper around the 0x API v2 AllowanceHolder. Routes IDRX↔USDC and reward-token-to-USDC swaps for the Router and StrategyManager."
+description: "The thin swap layer that connects Tumbuh to external markets."
 sidebarTitle: "SwapContract"
 icon: "right-left"
 ---
 
 # SwapContract
 
-The SwapContract is a small adapter for the [0x API v2 AllowanceHolder](https://0x.org/docs/api). The Router uses it for IDRX↔USDC; the StrategyManager uses it for converting reward tokens to USDC during `claimAndCompound`. No other contract can call it — `fillQuote` is gated by `onlyAuthorized`, restricted to those two callers.
+The SwapContract is the thin swap layer that connects the protocol to external markets. The router uses it for stablecoin↔vault-asset swaps; the strategy allocator uses it to convert reward tokens into the vault asset. No other contract can call it.
 
 The contract is deliberately thin. It does not choose what to swap, when to swap, or hold funds between calls. It validates the swap target, executes the call, and returns the bought amount.
 
-## `fillQuote`
+## What the swap layer does
 
-```solidity
-function fillQuote(
-    address sellToken,
-    address buyToken,
-    uint256 amount,
-    address swapTarget,
-    bytes calldata swapCallData
-) external onlyAuthorized nonReentrant returns (uint256 boughtAmount);
-```
-
-| Parameter | Meaning |
-|---|---|
-| `sellToken` | Token to sell (IDRX, USDC, or a reward token). |
-| `buyToken` | Token to receive. |
-| `amount` | How much `sellToken` to sell. |
-| `swapTarget` | Must equal the configured `allowanceHolder` address. Other targets are rejected. |
-| `swapCallData` | Opaque calldata fetched from the 0x API for this specific quote. |
-
-The contract pulls `amount` of `sellToken` from the caller, approves the AllowanceHolder, executes `swapTarget.call(swapCallData)`, resets the approval, and transfers the resulting `buyToken` back to the caller. Returns the actual `buyToken` received.
+Every swap is gated to a single approved external swap aggregator. Any other target is rejected at the contract level. Slippage protection is enforced one layer up — the router enforces a minimum acceptable output for user swaps, and the strategy allocator enforces a minimum acceptable output for reward-compound swaps.
 
 <Warning>
-**`swapTarget` is hard-validated against the configured `allowanceHolder`.** Any other target reverts. This prevents a caller from being tricked into routing a swap through an arbitrary contract via crafted `swapCallData`.
+**The swap target is hard-validated against the configured aggregator.** Any other target reverts. This prevents a caller from being tricked into routing a swap through an arbitrary contract via crafted swap data.
 </Warning>
 
-## Authorization
+Only the router and the strategy allocator can trigger a swap; no other path exists.
 
-```solidity
-modifier onlyAuthorized() {
-    if (msg.sender != strategyManager && msg.sender != router) revert NotAuthorized();
-    _;
-}
-```
+## Why an external aggregator
 
-The Router and the StrategyManager are the only authorized callers. There is no other path into `fillQuote`.
+Tumbuh routes swaps through a third-party aggregator (currently 0x) rather than calling individual market contracts directly. Two reasons:
 
-## Owner functions
+- **Best-execution routing.** The aggregator finds competitive pricing across markets, so the same input gets a good rate without Tumbuh maintaining its own routing logic.
+- **Minimum attack surface.** The swap layer has a single external dependency, which keeps the surface area for bugs small.
 
-The SwapContract uses `Ownable` (single-owner) rather than `AccessControl`. Two owner-only functions exist:
-
-| Function | Effect |
-|---|---|
-| `setStrategyManager(address _strategyManager)` | Updates the authorized StrategyManager. Emits `StrategyManagerUpdated`. |
-| `setRouter(address _router)` | Updates the authorized Router. Emits `RouterUpdated`. |
-
-The owner cannot call `fillQuote` directly — owner authority is for configuration only.
-
-## Events
-
-| Event | Notes |
-|---|---|
-| `SwapFinished(sellToken, buyToken, boughtAmount)` | Fires on every successful swap. Indexers can attribute the swap to its caller via the transaction context. |
-| `StrategyManagerUpdated`, `RouterUpdated` | Configuration changes. |
-
-## Why 0x
-
-Tumbuh swaps go through 0x rather than calling a DEX directly. Two reasons:
-
-- **Best-execution routing.** 0x aggregates across DEXs, so the same input gets a competitive price across pools without Tumbuh maintaining its own routing logic.
-- **Minimum attack surface.** The SwapContract has one external dependency (the AllowanceHolder). It does not call DEX pools, oracles, or token-specific logic.
-
-The price quality of any individual swap depends on 0x's quote at submission time. Slippage protection is the responsibility of the caller — the Router enforces `minSharesOut`/`minIdrxOut` at the user-facing layer, and the StrategyManager enforces `minUsdcOut` during `claimAndCompound`.
+The price quality of any individual swap depends on the aggregator's quote at submission time. Slippage protection is the responsibility of the caller.
 
 ## Related pages
 
-- [Deposit flow](/how-it-works/deposit-flow) — how the Router uses `fillQuote` for IDRX → USDC.
-- [Withdraw flow](/how-it-works/withdraw-flow) — USDC → IDRX on the way out.
-- [Building 0x swap data for Tumbuh](/developers/integration-guide#building-0x-swap-data) — for integrators preparing `swapData`.
+- [Deposit flow](/how-it-works/deposit-flow) — how the router uses the swap layer on deposit.
+- [Withdraw flow](/how-it-works/withdraw-flow) — how the router uses the swap layer on withdrawal.

@@ -1,13 +1,13 @@
 ---
 title: "Architecture overview"
-description: "The component map for Tumbuh Protocol V3 — what each contract does, what it does not, and how they connect."
+description: "The component map for Tumbuh — what each contract does, what it does not, and how they connect."
 sidebarTitle: "Overview"
 icon: "diagram-project"
 ---
 
 # Architecture overview
 
-Tumbuh is composed of five core contracts plus a receipt token. Each contract has a narrow responsibility, and most cross-contract calls are gated by access modifiers that match exactly one peer.
+Tumbuh is composed of five core contracts plus a receipt token. Each contract has a narrow responsibility, and the calls between them are tightly scoped.
 
 ## Component map
 
@@ -28,57 +28,57 @@ flowchart TB
         Morpho[MorphoStrategy]
     end
 
-    subgraph External["External vaults"]
-        MorphoV1[Morpho Vault 1]
-        MorphoV2[Morpho Vault 2]
-        Auto[AutoFinance]
-        Avantis[Avantis]
+    subgraph External["Yield protocols"]
+        P1[Yield protocol 1]
+        P2[Yield protocol 2]
+        P3[Yield protocol 3]
+        P4[Yield protocol 4]
     end
 
-    User -->|IDRX| Router
-    Router -->|deposit/redeem| Vault
-    Router -->|fillQuote| Swap
-    Router -->|mint/burn| TIDRX
-    Vault -->|deployFunds/withdrawFunds| SM
-    SM -->|fillQuote| Swap
-    SM -->|handleDeposit/Withdraw| Generic
-    SM -->|handleDeposit/Withdraw| Morpho
-    Generic --> MorphoV1
-    Generic --> Auto
-    Generic --> Avantis
-    Morpho --> MorphoV2
+    User -->|Stablecoin| Router
+    Router -->|deposit / redeem| Vault
+    Router -->|swap| Swap
+    Router -->|mint / burn receipt| TIDRX
+    Vault -->|allocate / pull funds| SM
+    SM -->|swap| Swap
+    SM -->|enter / exit protocol| Generic
+    SM -->|enter / exit protocol| Morpho
+    Generic --> P1
+    Generic --> P3
+    Generic --> P4
+    Morpho --> P2
 ```
 
 ## Responsibility matrix
 
 | Contract | Owns | Does not own |
 |---|---|---|
-| **TumbuhRouter** | IDRX user-facing entry, IDRX↔USDC swaps, per-user share and idle accounting, tIDRX mint/burn | USDC accounting, strategy allocation, fee collection |
-| **TumbuhVault** | ERC-4626 share accounting in USDC, idle USDC, performance fee mints, high-watermark | IDRX, swap execution, per-user position tracking, strategy logic |
-| **StrategyManager** | Strategy registry, percentage allocation, rebalance, reward compounding, emergency exits | USDC custody beyond transient pulls, performance fee, per-user positions |
-| **SwapContract** | 0x AllowanceHolder calls, gated to Router and StrategyManager only | Choosing what to swap, when to swap |
-| **Adapters** | Bridge calls into one external ERC-4626 vault, optional reward claiming | Allocation, scheduling, multi-vault aggregation |
-| **TIDRX** | Soulbound 1:1 receipt for IDRX deposits | Yield accrual, vault share tracking |
+| **TumbuhRouter** | The user-facing entry layer; per-user position accounting; receipt-token mint and burn; stablecoin↔vault-asset swaps for deposits and withdrawals | Vault-asset accounting; strategy allocation; fee collection |
+| **TumbuhVault** | The vault's value accounting; idle vault asset; performance-fee mints (when the new model is live); the all-time-high watermark | Stablecoins other than the vault asset; swap execution; per-user position tracking; strategy logic |
+| **StrategyManager** | The strategy registry; allocation across active strategies; rebalancing; reward compounding; emergency exits | Vault-asset custody beyond transient pulls; performance fee; per-user positions |
+| **SwapContract** | Routing swaps through an external aggregator, gated to the router and the strategy allocator only | Choosing what to swap, when to swap |
+| **Adapters** | Bridging into one external yield protocol per adapter; optional reward claiming | Allocation, scheduling, multi-protocol aggregation |
+| **TIDRX** | A soulbound 1:1 receipt for stablecoin deposits | Yield accrual; vault-position tracking |
 
 ## How the contracts connect
 
-- The Router is the only contract a regular user interacts with. It pulls IDRX, drives the swap, deposits USDC into the Vault, and mints tIDRX.
-- The Vault is the only contract authorized to call `deployFunds` and `withdrawFunds` on the StrategyManager.
-- The StrategyManager is the only contract authorized to call adapter methods.
-- The SwapContract is callable only by the Router and the StrategyManager — no general-purpose access.
-- TIDRX is mintable and burnable only by the Router (the address is fixed at deployment and cannot change).
+- The router is the only contract a regular user interacts with. It pulls stablecoin from the user, drives the swap, places the result into the vault, and issues the receipt token.
+- The vault is the only contract that can move capital into and out of the strategy allocator.
+- The strategy allocator is the only contract that can move capital into and out of yield-protocol adapters.
+- The swap layer is callable only by the router and the strategy allocator — no general-purpose access.
+- The receipt token can be minted and burned only by the router (the address is fixed at deployment and cannot change).
 
-This narrow gating keeps the trust boundary obvious for auditors: each contract has at most one upstream caller, and unprivileged paths never reach the strategies.
+This narrow scoping keeps the trust boundary obvious: each contract has at most one upstream caller, and unprivileged paths never reach the strategies.
 
 ## Upgrade pattern
 
-All five core contracts are UUPS-upgradeable, with namespaced storage per [ERC-7201](https://eips.ethereum.org/EIPS/eip-7201) so storage layouts stay stable across upgrades. There is no on-chain timelock on upgrades today — see [Upgradeability](/security/upgradeability) for details and the residual risk.
+All core contracts are upgradeable; the technical detail lives in [Upgradeability](/security/upgradeability).
 
 ## Where to go next
 
 - [TumbuhRouter](/protocol-architecture/tumbuh-router) — the user-facing entry point.
-- [TumbuhVault](/protocol-architecture/tumbuh-vault) — the ERC-4626 USDC vault.
+- [TumbuhVault](/protocol-architecture/tumbuh-vault) — the vault component.
 - [StrategyManager](/protocol-architecture/strategy-manager) — allocation and rebalancing.
-- [Adapters](/protocol-architecture/adapters) — how external ERC-4626 vaults plug in.
-- [SwapContract](/protocol-architecture/swap-contract) — 0x integration.
+- [Adapters](/protocol-architecture/adapters) — how external yield protocols plug in.
+- [SwapContract](/protocol-architecture/swap-contract) — the swap layer.
 - [Access control](/security/access-control) — who can call what.

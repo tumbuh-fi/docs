@@ -1,38 +1,38 @@
 ---
 title: "Tokens"
-description: "The three tokens that move through Tumbuh: IDRX (entry), USDC (vault asset), and tIDRX (receipt)."
+description: "The tokens that move through Tumbuh: the entry stablecoin, the vault asset, and the receipt token."
 sidebarTitle: "Tokens"
 icon: "coins"
 ---
 
 # Tokens
 
-Three tokens are involved in a Tumbuh deposit. Only one of them — tIDRX — is issued by Tumbuh itself. The other two are external assets that Tumbuh interoperates with.
+Three tokens are involved in a Tumbuh deposit. Only one of them — your receipt token — is issued by Tumbuh itself. The others are external assets the protocol interoperates with.
 
 ```mermaid
 flowchart TB
     subgraph Wallet["Your wallet"]
-        TIDRX["tIDRX (soulbound)"]
-        IDRXBal["IDRX (free balance)"]
+        TIDRX["Receipt token (soulbound)"]
+        IDRXBal["Stablecoin (free balance)"]
     end
 
-    subgraph RouterHoldings["Router holdings (per user)"]
-        Shares["Vault shares"]
-        IdleIDRX["Idle IDRX"]
+    subgraph RouterHoldings["Protocol-held (per user)"]
+        Shares["Vault position"]
+        IdleIDRX["Idle stablecoin"]
     end
 
     subgraph VaultHoldings["Vault holdings"]
-        USDCIdle["Idle USDC"]
-        StratPos["Strategy positions (USDC-denominated)"]
+        USDCIdle["Idle vault asset"]
+        StratPos["Yield-protocol positions"]
     end
 
     Wallet -.tracks.-> RouterHoldings
     RouterHoldings -.represents.-> VaultHoldings
 ```
 
-## IDRX — the entry asset
+## IDRX — the entry asset (current)
 
-**IDRX** is a Rupiah-pegged stablecoin. It has 2 decimals and is issued and managed by an external project. Tumbuh treats IDRX as the **current entry asset**: the Router accepts IDRX, swaps the configured portion to USDC, and stores the rest as a per-user idle balance.
+**IDRX** is the current entry stablecoin, issued and managed by an external project. Tumbuh treats it as the **current entry asset**: the protocol accepts IDRX, swaps the configured portion to the vault asset, and stores the rest as a per-user idle balance.
 
 Tumbuh does not issue, mint, or back IDRX. For information about IDRX itself — issuance, peg mechanics, regulatory posture, supported networks — see the [IDRX project documentation](https://idrx.co/).
 
@@ -40,69 +40,56 @@ Tumbuh does not issue, mint, or back IDRX. For information about IDRX itself —
 |---|---|
 | Decimals | 2 |
 | Network | Base mainnet |
-| Used for | Deposits and withdrawals through the Router |
+| Used for | Deposits and withdrawals through the protocol |
 
-The Router is the **extensibility point for additional input assets**. The protocol does not assume IDRX is the only possible entry asset; future deployments could add other input assets through additional Router instances or upgrades, without changes to the Vault.
+The protocol is designed to support additional entry stablecoins over time, without changes to the underlying vault.
 
-## USDC — the vault asset
+## USDC — the vault asset (current)
 
-**USDC** is the asset the Vault is denominated in. It has 6 decimals on Base. Tumbuh holds idle balances in USDC, deploys USDC to strategies, accounts for `totalAssets()` in USDC, and quotes performance fees in USDC.
+**USDC** is the asset the vault is currently denominated in. It has 6 decimals on Base. Tumbuh holds idle balances in the vault asset, deploys it to yield protocols, and accounts for the vault's value in this asset.
 
 | Property | Value |
 |---|---|
 | Decimals | 6 |
 | Network | Base mainnet |
-| Used for | Vault accounting, strategy allocation, fee math |
+| Used for | Vault accounting and yield-protocol allocation |
 
-USDC is chosen because the integrated yield protocols (Morpho, AutoFinance, Avantis) all denominate in USDC. Matching them avoids per-strategy currency conversion and keeps the share-price computation simple.
+USDC is chosen to match the denomination of the integrated yield protocols. As the protocol adds vaults with different denominations in the future, this page will list the current asset for each.
 
-You do not need to hold USDC to use Tumbuh. The Router converts IDRX to USDC for you on deposit and converts USDC back to IDRX on withdrawal.
+You do not need to hold USDC to use Tumbuh. The protocol converts your stablecoin to the vault asset for you on deposit and converts it back on withdrawal.
 
 ## tIDRX — the receipt token
 
-**tIDRX** is the only token Tumbuh itself issues. It is a **soulbound ERC-20** with 2 decimals, minted 1:1 with the gross IDRX you deposit and burned 1:1 when you redeem.
+**tIDRX** is the only token Tumbuh itself issues. It is your **receipt token** — soulbound, 2 decimals, minted 1:1 with the gross stablecoin amount you deposit and burned 1:1 when you redeem.
 
 | Property | Value |
 |---|---|
 | Decimals | 2 |
 | Transferable | No — soulbound |
-| Mint and burn authority | Router only (immutable, set at deployment) |
-| Total supply | Sum of every depositor's gross IDRX deposit, minus what has been redeemed |
+| Issued by | the Tumbuh protocol |
+| Total supply | Sum of every depositor's gross deposit, minus what has been redeemed |
 
 ### What tIDRX is for
 
-tIDRX is your **receipt of deposit**, not your yield-bearing position. It identifies you as the owner of a slice of the Vault and is what you burn to withdraw. The actual yield-bearing instrument — your vault shares — is held by the Router on your behalf.
+tIDRX is your **receipt of deposit**, not your yield-bearing position. It identifies you as the owner of a slice of the vault and is what you burn to withdraw. The actual yield-bearing instrument — your vault position — is held by the protocol on your behalf.
 
 <Note>
-**tIDRX is not yield-bearing.** It is neither a cToken (constant balance, rising token value) nor an aToken (rising balance, pegged value). It is a pure receipt that records how much IDRX you originally deposited. Your tIDRX balance does not change as yield accrues. You see your yield at redemption time, when your tIDRX burns for **more IDRX than you deposited**.
+**The receipt token is not yield-bearing.** It is a pure receipt that records how much stablecoin you originally deposited. Your tIDRX balance does not change as yield accrues. You see your yield at redemption time, when your tIDRX burns for **more stablecoin than you deposited**.
 </Note>
 
 ### Why soulbound
 
-Transfers between non-zero addresses are blocked at the contract level (the `_update` override reverts when both `from` and `to` are non-zero). Only **mints** (from `address(0)`) and **burns** (to `address(0)`) are allowed.
+Transfers between non-zero addresses are blocked at the contract level. Only mints (from `address(0)`) and burns (to `address(0)`) are allowed.
 
-This is intentional. tIDRX is tied to the Router's per-user accounting (`userVaultShares` and `idrxIdleBalances`), not to a wallet balance alone. If tIDRX could be transferred between wallets, the receipt and the underlying position would diverge — the new holder would have tIDRX with no claim, and the original holder would have a claim with no proof. Soulbound enforcement keeps the receipt and the position bound to the same address.
-
-### Implementation note
-
-The Router address is **immutable** on the TIDRX contract — it is set in the constructor and cannot be changed afterward. This is a deployment-time invariant. Together with the Router's [one-time `setTidrx`](/protocol-architecture/tumbuh-router#default_admin_role), the wiring between Router and TIDRX is fixed for the lifetime of the contract.
+This is intentional. The receipt token is tied to the protocol's per-user records, not to a wallet balance alone. If receipts could be transferred between wallets, the receipt and the underlying position would diverge — the new holder would have a receipt with no claim, and the original holder would have a claim with no proof. Soulbound enforcement keeps the receipt and the position bound to the same address.
 
 ## Reading your position
 
-Because tIDRX does not reflect yield, you cannot read your USDC-equivalent value from your wallet alone. To estimate your current value:
-
-```
-shares = router.getUserVaultShares(your_address)       // your vault shares
-usdc   = vault.convertToAssets(shares)                 // their USDC value
-idrx   = quote(usdc, USDC → IDRX)                      // off-chain via 0x
-total  = idrx + router.getIdleBalance(your_address)    // plus your idle IDRX
-```
-
-A wallet or frontend usually packages this into a single "estimated value" number. See [Yield generation](/how-it-works/yield-generation) for the full picture.
+Because the receipt token does not reflect yield, you cannot read your vault-asset-equivalent value from your wallet alone. The web app at [app.tumbuh.fi](https://app.tumbuh.fi) reads the vault and the protocol's per-user records to show your current value in your stablecoin terms.
 
 ## Related pages
 
-- [Getting started](/how-it-works/getting-started) — your first deposit.
-- [TumbuhRouter](/protocol-architecture/tumbuh-router) — `userVaultShares` and `idrxIdleBalances`.
-- [TumbuhVault](/protocol-architecture/tumbuh-vault) — vault share accounting.
-- [Yield generation](/how-it-works/yield-generation) — why the tIDRX balance is flat while value rises.
+- [Getting started](/how-it-works/getting-started) — your first deposit on app.tumbuh.fi.
+- [TumbuhRouter](/protocol-architecture/tumbuh-router) — the protocol's entry layer.
+- [TumbuhVault](/protocol-architecture/tumbuh-vault) — the vault component.
+- [Yield generation](/how-it-works/yield-generation) — why the receipt-token balance is flat while value rises.
