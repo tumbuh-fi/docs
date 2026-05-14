@@ -39,9 +39,9 @@ The Ethereum standard for namespaced storage layouts in upgradeable contracts. T
 
 A role with pause authority on the vault, strategy allocator, and entry layer, and the authority to force-exit a misbehaving yield protocol. See [Pausability and emergency](/security/pausability-emergency).
 
-### High-watermark (HWM)
+### Cost basis
 
-**Coming soon.** Part of the previous performance-fee design, currently retired. **No performance fee is charged today.** This entry will be updated when the new fee model is ready.
+The USDC-equivalent value of a user's deposits, tracked per-user in the [TumbuhRouter](/protocol-architecture/tumbuh-router). Used to compute performance fees on redemption: fee is charged only on profit above cost basis.
 
 ### IDRX
 
@@ -49,7 +49,7 @@ A stablecoin issued by an external project. The current deposit asset for Tumbuh
 
 ### `OPERATOR_ROLE`
 
-A role with day-to-day operational authority on the vault and strategy allocator: add or remove yield protocols, rebalance, and trigger reward claiming. See [Access control](/security/access-control).
+A role with day-to-day operational authority on the strategy allocator: add or remove yield protocols, rebalance, and trigger reward claiming. See [Access control](/security/access-control).
 
 ### Receipt token
 
@@ -57,7 +57,7 @@ A token that represents a deposit position without rebasing or accruing yield in
 
 ### Share value
 
-The vault's value divided by the share count. As yield accrues, the value rises while the share count is unchanged outside fee mints (none today), so each share is worth more of the vault asset over time. See [Yield generation](/how-it-works/yield-generation).
+The vault's value divided by the share count. As yield accrues, the value rises while the share count is unchanged, so each share is worth more of the vault asset over time. See [Yield generation](/how-it-works/yield-generation).
 
 ### Slippage
 

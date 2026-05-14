@@ -14,7 +14,7 @@ Tumbuh has three independently-pausable contracts (Router, Vault, StrategyManage
 | Contract | Paused state blocks | Does not block |
 |---|---|---|
 | **TumbuhRouter** | `depositWithSwap`, `redeemWithSwap` | View functions; admin re-wiring |
-| **TumbuhVault** | `deposit`, `redeem` | `totalAssets`, `convertToAssets`, `pendingPerformanceFee`, `collectFee` |
+| **TumbuhVault** | `deposit`, `redeem` | `totalAssets`, `convertToAssets`, view functions |
 | **StrategyManager** | `deployFunds`, `withdrawFunds` | View functions; `addFarmStrategy`, `removeFarmStrategy`, `updateStrategyPercentages`, `rebalance`, `claimAndCompound`, `emergencyWithdrawStrategy` |
 | **SwapContract** | (no pause) | — |
 

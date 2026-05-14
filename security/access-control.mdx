@@ -13,10 +13,10 @@ Tumbuh uses OpenZeppelin's `AccessControl` on the three core role-bearing contra
 
 | Role | Scope | What it does |
 |---|---|---|
-| `DEFAULT_ADMIN_ROLE` | Vault, StrategyManager, Router | Wires contracts (set Vault, set Router, set StrategyManager, set Treasury, set TIDRX one-time). Authorizes UUPS upgrades. The protocol's highest-impact role. |
-| `OPERATOR_ROLE` | Vault, StrategyManager | Operational authority: collect performance fees, add/remove/update strategies, rebalance, claim and compound rewards, reactivate strategies. |
+| `DEFAULT_ADMIN_ROLE` | Vault, StrategyManager, Router | Wires contracts (set Vault, set Router, set StrategyManager, set TIDRX one-time). Authorizes UUPS upgrades. The protocol's highest-impact role. |
+| `OPERATOR_ROLE` | StrategyManager | Operational authority: add/remove/update strategies, rebalance, claim and compound rewards, reactivate strategies. |
 | `GUARDIAN_ROLE` | Vault, StrategyManager, Router | Pause/unpause; trigger emergency strategy withdrawal. |
-| `ADMIN_MANAGER` | Router only | Tunes deposit parameters: swap percentage, minimum deposit. Distinct from `OPERATOR_ROLE` so router-config admins do not inherit vault authority. |
+| `ADMIN_MANAGER` | Router only | Tunes deposit parameters: swap percentage, minimum deposit. Distinct from `OPERATOR_ROLE` so router-config admins do not inherit strategy authority. |
 
 ## Role authority diagram
 
@@ -27,11 +27,10 @@ flowchart LR
     GU[GUARDIAN_ROLE]
     AM[ADMIN_MANAGER]
 
-    DA -->|setStrategyManager / setRouter / setTreasury / upgrade| Vault
+    DA -->|setStrategyManager / setRouter / upgrade| Vault
     DA -->|setVault / setSwapContract / upgrade| SM[StrategyManager]
     DA -->|setVault / setSwapContract / setTidrx*| Router
 
-    OP -->|setPerformanceFee / collectFee| Vault
     OP -->|add/remove/update strategies / rebalance / claimAndCompound / reactivate| SM
 
     GU -->|pause/unpause| Vault
@@ -49,17 +48,14 @@ flowchart LR
 
 ### TumbuhVault
 
-| Function | DEFAULT_ADMIN | OPERATOR | GUARDIAN | Implicit | Timelocked? |
-|---|---|---|---|---|---|
-| `deposit` | ✓ | | | Router (via `onlyAuthorized`) | No |
-| `redeem` | ✓ | | | Router (via `onlyAuthorized`) | No |
-| `setStrategyManager` | ✓ | | | | No |
-| `setRouter` | ✓ | | | | No |
-| `setTreasury` | ✓ | | | | No |
-| `setPerformanceFee` | | ✓ | | | No |
-| `collectFee` | | ✓ | | | No |
-| `pause` / `unpause` | | | ✓ | | No |
-| `_authorizeUpgrade` | ✓ | | | | No |
+| Function | DEFAULT_ADMIN | GUARDIAN | Implicit | Timelocked? |
+|---|---|---|---|---|
+| `deposit` | ✓ | | Router (via `onlyAuthorized`) | No |
+| `redeem` | ✓ | | Router (via `onlyAuthorized`) | No |
+| `setStrategyManager` | ✓ | | | No |
+| `setRouter` | ✓ | | | No |
+| `pause` / `unpause` | | ✓ | | No |
+| `_authorizeUpgrade` | ✓ | | | No |
 
 ### StrategyManager
 
@@ -136,9 +132,9 @@ These bindings are how Tumbuh keeps every call path narrow: the StrategyManager 
 
 The four roles are split intentionally:
 
-- **`DEFAULT_ADMIN_ROLE` ≠ `OPERATOR_ROLE`.** The admin controls wiring and treasury but does not run day-to-day operations; the operator runs operations but cannot redirect the treasury or upgrade contracts.
+- **`DEFAULT_ADMIN_ROLE` ≠ `OPERATOR_ROLE`.** The admin controls wiring and upgrades; the operator runs strategy operations but cannot redirect treasury or upgrade contracts.
 - **`OPERATOR_ROLE` ≠ `GUARDIAN_ROLE`.** The operator can create and rebalance strategies; the guardian can pause and force-exit but cannot create or rebalance. Pausing is an emergency action that should be triggerable by a separate signer set.
-- **`ADMIN_MANAGER` exists separately on the Router.** Tuning the Router's swap percentage and minimum deposit is a low-impact ops task that does not need vault-level authority. Separating it allows finer-grained delegation.
+- **`ADMIN_MANAGER` exists separately on the Router.** Tuning the Router's swap percentage and minimum deposit is a low-impact ops task that does not need strategy-level authority. Separating it allows finer-grained delegation.
 - **The SwapContract uses Ownable instead of `AccessControl`.** Single-owner is sufficient because the only configurable surface is which Router and StrategyManager to authorize. There are no operational sub-roles.
 
 ## Where to go next

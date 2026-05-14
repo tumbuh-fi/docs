@@ -18,11 +18,11 @@ Each invariant is enforced by the contracts at the location given. Any breach im
 | 1 | `mint(uint256, address)` on the Vault always reverts with `NotImplemented`. | `TumbuhVault.mint` |
 | 2 | `withdraw(uint256, address, address)` on the Vault always reverts with `NotImplemented`. | `TumbuhVault.withdraw` |
 | 3 | `swapPercentage` is bounded `7000 ≤ swapPercentage ≤ 9000` bps. | `TumbuhRouter.setSwapPercentage` |
-| 4 | `performanceFeeBps ≤ 3000` (30%). | `TumbuhVault.setPerformanceFee` |
+| 4 | `baseFeeBps ≤ MAX_BASE_FEE_BPS` (20%). | `TumbuhRouter.initialize` |
 | 5 | At most 10 strategies are active at once. | `StrategyManager.addFarmStrategy`, `reactivateStrategy` |
 | 6 | The sum of active strategy percentages is at most 10000 bps. | `StrategyManager.addFarmStrategy`, `updateStrategyPercentages` |
 | 7 | `swapTarget == allowanceHolder` on every `fillQuote`. | `SwapContract.fillQuote` |
-| 8 | `highWaterMark` is monotonically non-decreasing within `collectFee` (set to `totalAssets()` after a successful collection). | `TumbuhVault.collectFee` |
+| 8 | Per-user cost basis (`userCostBasisUsdc`) is updated on each deposit and used to compute performance fee on redemption. | `TumbuhRouter.depositWithSwap`, `TumbuhRouter.redeemWithSwap` |
 | 9 | `setTidrx` succeeds at most once per Router instance. | `TumbuhRouter.setTidrx` |
 | 10 | TIDRX transfers where `from != 0 && to != 0` revert. | `TIDRX._update` |
 | 11 | TIDRX `mint` and `burn` are callable only by the immutable Router address recorded at construction. | `TIDRX.mint`, `TIDRX.burn`, `TIDRX.constructor` |
