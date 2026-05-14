@@ -53,9 +53,9 @@ flowchart TB
 
 | Contract | Owns | Does not own |
 |---|---|---|
-| **TumbuhRouter** | The user-facing entry layer; per-user position accounting; receipt-token mint and burn; deposit-asset ↔ vault-asset swaps for deposits and withdrawals | Vault-asset accounting; strategy allocation; fee collection |
-| **TumbuhVault** | The vault's value accounting; idle vault asset; performance-fee mints (when the new model is live); the all-time-high watermark | Stablecoins other than the vault asset; swap execution; per-user position tracking; strategy logic |
-| **StrategyManager** | The strategy registry; allocation across active strategies; rebalancing; reward compounding; emergency exits | Vault-asset custody beyond transient pulls; performance fee; per-user positions |
+| **TumbuhRouter** | The user-facing entry layer; per-user position accounting; receipt-token mint and burn; deposit-asset ↔ vault-asset swaps; per-user performance fee on redemption | Vault-asset accounting; strategy allocation |
+| **TumbuhVault** | The vault's value accounting; idle vault asset; share price tracking | Stablecoins other than the vault asset; swap execution; per-user position tracking; strategy logic; fee collection |
+| **StrategyManager** | The strategy registry; allocation across active strategies; rebalancing; reward compounding; emergency exits | Vault-asset custody beyond transient pulls; per-user positions |
 | **SwapContract** | Routing swaps through an external aggregator, gated to the router and the strategy allocator only | Choosing what to swap, when to swap |
 | **Adapters** | Bridging into one external yield protocol per adapter; optional reward claiming | Allocation, scheduling, multi-protocol aggregation |
 | **TIDRX** | A soulbound 1:1 receipt for deposits | Yield accrual; vault-position tracking |

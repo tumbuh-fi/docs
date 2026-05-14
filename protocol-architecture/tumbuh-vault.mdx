@@ -9,7 +9,7 @@ icon: "vault"
 
 The TumbuhVault is the protocol's accounting engine. It tracks the vault asset, issues vault positions to its depositors, and forwards capital to the strategy allocator that distributes it across yield protocols.
 
-The vault is intentionally narrow. It does not manage strategies, swap tokens, or track per-user positions — those are other components' jobs. Its responsibilities are share accounting, fee collection (when the new fee model is live), and forwarding capital to the strategy allocator.
+The vault is intentionally narrow. It does not manage strategies, swap tokens, or track per-user positions — those are other components' jobs. Its responsibilities are share accounting and forwarding capital to the strategy allocator. Performance fees are charged per-user in the [TumbuhRouter](/protocol-architecture/tumbuh-router).
 
 ## What the vault does
 
@@ -21,7 +21,7 @@ The vault is intentionally narrow. It does not manage strategies, swap tokens, o
 ## Important caveats
 
 <Note>
-**The vault tracks each share's value as the integrated protocols pay yield.** There is no rebasing of token balances; the share value rises while the share count stays fixed (outside the rare fee mint).
+**The vault tracks each share's value as the integrated protocols pay yield.** There is no rebasing of token balances; the share value rises while the share count stays fixed.
 </Note>
 
 <Note>
